@@ -81,6 +81,8 @@
 static instruction_t* instr_queue[INSTR_QUEUE_SIZE];
 //number of instructions in the instruction queue
 static int instr_queue_size = 0;
+static int instr_queue_head = 0;
+static int instr_queue_tail = 0;
 
 //reservation stations (each reservation station entry contains a pointer to an instruction)
 static instruction_t* reservINT[RESERV_INT_SIZE];
@@ -93,17 +95,24 @@ static instruction_t* fuFP[FU_FP_SIZE];
 //common data bus
 static instruction_t* commonDataBus = NULL;
 
-//The map table keeps track of which instruction produces the value for each register
-static instruction_t* map_table[MD_TOTAL_REGS];
-
 //the index of the last instruction fetched
 static int fetch_index = 0;
+
+typedef struct instruction_list_type
+{
+  instruction_t *     node; //pointer to RS entry
+  instruction_lst_t * next; //next itne
+
+}instr_lst_t;
+
+//The map table keeps track of which instruction produces the value for each register
+static instr_lst_t * map_table[MD_TOTAL_REGS];
+
 
 /* FUNCTIONAL UNITS */
 
 
 /* RESERVATION STATIONS */
-
 
 /* 
  * Description: 
@@ -174,7 +183,6 @@ void issue_To_execute(int current_cycle) {
  * 	None
  */
 void dispatch_To_issue(int current_cycle) {
-
   /* ECE552: YOUR CODE GOES HERE */
 }
 
@@ -187,10 +195,59 @@ void dispatch_To_issue(int current_cycle) {
  * 	None
  */
 void fetch(instruction_trace_t* trace) {
-
   /* ECE552: YOUR CODE GOES HERE */
+  instruction_t f_instr;
+  if (fetch_index == INSTR_TRACE_SIZE)
+  {
+    printf("INFO: reached the end of instruction trace execution ...\n");
+    return;
+  }
+
+  //skip over TRAP instructions
+  do {
+    f_instr = trace->table[fetch_index++];
+  } while(IS_TRAP(f_instr.op) && instr_queue_size != INSTR_QUEUE_SIZE);
+  
+  assert(instr_queue_head >= 0 && instr_queue_head < INSTR_QUEUE_SIZE);
+  instr_queue[c_cnt_post_incr(instr_queue_head)] = f_instr; 
 }
 
+//update the MAP table during dispatch
+void d_update_mt(instruction_t * d_instr)
+{
+  instr_lst_t *   mt_lst_entry, tmp_lst;
+  //update MAP table
+  if (d_instr->r_out[0] != DNA)
+  {
+     mt_lst_entry =  (instr_lst_t*)malloc(sizeof(instr_lst_t));
+     mt_lst_entry->node = d_rs;
+     mt_lst_entry->next = NULL;
+     if (map_table[d_instr->r_out[0]] == NULL) {
+       map_table[d_instr->r_out[0]] = mt_lst_entry;
+     } else { //there is an existing map-table tag
+       tmp_lst = map_table[d_instr->r_out[0]]
+       while (tmp_lst->next != null) {
+         tmp_lst = tmp_lst->next;
+       }
+       tmp_lst->next = mt_lst_entry;
+     }
+  } 
+  if (d_instr->r_out[1] != DNA)
+  {
+     mt_lst_entry =  (instr_lst_t*)malloc(sizeof(instr_lst_t));
+     mt_lst_entry->node = d_rs;
+     mt_lst_entry->next = NULL;
+     if (map_table[d_instr->r_out[1]] == NULL) {
+       map_table[d_instr->r_out[1]] = mt_lst_entry;
+     } else { //there is an existing map-table tag
+       tmp_lst = map_table[d_instr->r_out[1]]
+       while (tmp_lst->next != null) {
+         tmp_lst = tmp_lst->next;
+       }
+       tmp_lst->next = mt_lst_entry;
+     }
+  } 
+}
 /* 
  * Description: 
  * 	Calls fetch and dispatches an instruction at the same cycle (if possible)
@@ -201,10 +258,67 @@ void fetch(instruction_trace_t* trace) {
  * 	None
  */
 void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
-
+  /* ECE552: YOUR CODE GOES HERE */
+  int i;
+  instruction_t   d_instr;
+  instruction_t * d_rs;
   fetch(trace);
 
-  /* ECE552: YOUR CODE GOES HERE */
+  assert(instr_queue_tail >= 0 && instr_queue_tail < INSTR_QUEUE_SIZE);
+  d_instr = instr_queue[c_cnt_post_incr(instr_queue_tail)]; 
+  d_instr.tom_dispatch_cycle = current_cycle;
+
+  if (USES_INT_FU(d_instr.op))
+  {
+    for(i=0; i<RESERV_INT_SIZE; ++i)
+    {
+      if (reservINT[i] == NULL) {
+         d_rs = (instruction_t*) malloc(sizeof(instruction_t));
+         *d_rs = d_instr;
+         reservINT[i] = d_rs;
+         break;
+      }
+    }
+    printf("INFO: dispatched an INT instruction at cycle %d\n", current_cycle);
+  }
+  else if (USES_FP_FU(d_instr.op))
+  {
+    for(i=0; i<RESERV_FP_SIZE; ++i)
+    {
+      if (reservFP[i] == NULL) {
+         d_rs = (instruction_t*) malloc(sizeof(instruction_t));
+         *d_rs = d_instr;
+         reservFP[i] = d_rs;
+         break;
+      }
+    }
+    printf("INFO: dispatched a FP instruction at cycle %d\n", current_cycle);
+  }
+  else if (IS_UNCOND_CTRL(d_instr.op) || IS_COND_CTRL(d_instr.op))
+  {
+    /*
+    *  unconditional & conditional branches ar enot issued to the reservation stations
+    *  they do not use any FU, they do not write to the CDB
+    *  they do not cause a control hazard
+    */
+    printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
+  }
+  else
+  {
+    printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_instr.op, current_cycle);
+  }
+
+
+  //update map table
+  d_update_mt(d_rs);
+
+  //check for RAWs, update TAGs
+  for (i = 0; i < 3; ++i)
+  {
+     //note: NULL value == free of RAW (i.e. tag)
+     d_rs->Q[i] = map_table[r_in[i]]->node;
+  } 
+
 }
 
 /* 
@@ -243,8 +357,7 @@ counter_t runTomasulo(instruction_trace_t* trace)
     fuFP[i] = NULL;
   }
 
-  //initialize map_table to no producers
-  int reg;
+  //initialize map_table to no producers int reg;
   for (reg = 0; reg < MD_TOTAL_REGS; reg++) {
     map_table[reg] = NULL;
   }
@@ -253,7 +366,6 @@ counter_t runTomasulo(instruction_trace_t* trace)
   while (true) {
 
      /* ECE552: YOUR CODE GOES HERE */
-
      cycle++;
 
      if (is_simulation_done(sim_num_insn))
