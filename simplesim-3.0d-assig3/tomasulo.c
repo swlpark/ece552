@@ -1,4 +1,3 @@
-
 #include <limits.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -100,10 +99,9 @@ static int fetch_index = 0;
 
 typedef struct instruction_list_type
 {
-  instruction_t *     node; //pointer to RS entry
-  instruction_lst_t * next; //next itne
-
-}instr_lst_t;
+  instruction_t                * node; //pointer to RS entry
+  struct instruction_list_type * next; //next itne
+} instr_lst_t;
 
 //The map table keeps track of which instruction produces the value for each register
 static instr_lst_t * map_table[MD_TOTAL_REGS];
@@ -124,10 +122,10 @@ static instr_lst_t * map_table[MD_TOTAL_REGS];
  * 	True: if simulation is finished
  */
 static bool is_simulation_done(counter_t sim_insn) {
+  /* ECE552: Assignment 3 - BEGIN CODE */
 
-  /* ECE552: YOUR CODE GOES HERE */
-
-  return true; //ECE552: you can change this as needed; we've added this so the code provided to you compiles
+  return false;
+  /* ECE552: Assignment 3 - END CODE */
 }
 
 /* 
@@ -139,11 +137,25 @@ static bool is_simulation_done(counter_t sim_insn) {
  * 	None
  */
 void CDB_To_retire(int current_cycle) {
+  /* ECE552: Assignment 3 - BEGIN CODE */
+  int i;
 
-  /* ECE552: YOUR CODE GOES HERE */
+  //free the RS of an entry
+  for (i=0; i<RESERV_INT_SIZE; i=i+1) {
+     if(reservINT[i]->tom_cdb_cycle == current_cycle) {
+       reservINT[i] = NULL;
+       break;
+     }
+  }
+  for (i=0; i<RESERV_FP_SIZE; i=i+1) {
+     if(reservFP[i]->tom_cdb_cycle == current_cycle) {
+       reservFP[i] = NULL;
+       break;
+     }
+  }
 
+  /* ECE552: Assignment 3 - END CODE */
 }
-
 
 /* 
  * Description: 
@@ -154,10 +166,58 @@ void CDB_To_retire(int current_cycle) {
  * 	None
  */
 void execute_To_CDB(int current_cycle) {
+  /* ECE552: Assignment 3 - BEGIN CODE */
+  int i, cdb_cycle; 
+  int fu_idx = -1;
+  bool fp_fu = false;
 
-  /* ECE552: YOUR CODE GOES HERE */
+  instruction_t * c_instr = NULL;
+  for(i=0; i<FU_INT_SIZE; i=i+1)
+  {
+    if (fuINT[i] != NULL && fuINT[i]->tom_execute_cycle > 0) {
+       cdb_cycle = fuINT[i]->tom_execute_cycle + 4;
+       if(cdb_cycle <= current_cycle) {
+         if(c_instr == NULL) {
+           c_instr = fuINT[i];
+           fu_idx = i;
+         } else if(fuINT[i]->tom_dispatch_cycle < c_instr->tom_dispatch_cycle) {
+           c_instr = fuINT[i];
+           fu_idx = i;
+         }
+       }
+    }
+  }
+  for(i=0; i<FU_FP_SIZE; i=i+1)
+  {
+    if (fuFP[i] != NULL && fuFP[i]->tom_execute_cycle > 0) {
+       cdb_cycle = fuFP[i]->tom_execute_cycle + 9;
+       if(cdb_cycle <= current_cycle) {
+         if(c_instr == NULL) {
+           c_instr = fuFP[i];
+           fu_idx = i;
+           fp_fu = true;
+         } else if(fuFP[i]->tom_dispatch_cycle < c_instr->tom_dispatch_cycle) {
+           c_instr = fuFP[i];
+           fu_idx = i;
+           fp_fu = true;
+         }
+       }
+    }
+  }
+  if (c_instr == NULL)
+    return;
+  c_instr->tom_cdb_cycle = current_cycle; 
 
+  //clear FU, RS of the completed instruction
+  if(fp_fu) {
+   fuFP[fu_idx] = NULL;
+  } else {
+   fuINT[fu_idx] = NULL;
+  }
+
+  /* ECE552: Assignment 3 - END CODE */
 }
+
 
 /* 
  * Description: 
@@ -170,8 +230,21 @@ void execute_To_CDB(int current_cycle) {
  * 	None
  */
 void issue_To_execute(int current_cycle) {
+  /* ECE552: Assignment 3 - BEGIN CODE */
+  int i; 
 
-  /* ECE552: YOUR CODE GOES HERE */
+  for(i=0; i<FU_INT_SIZE; i=i+1)
+  {
+    if (fuINT[i] != NULL && fuINT[i]->tom_execute_cycle == 0)
+       fuINT[i]->tom_execute_cycle = current_cycle;
+  }
+
+  for(i=0; i<FU_FP_SIZE; i=i+1)
+  {
+    if (fuFP[i] != NULL && fuFP[i]->tom_execute_cycle == 0)
+       fuFP[i]->tom_execute_cycle = current_cycle;
+  }
+  /* ECE552: Assignment 3 - END CODE */
 }
 
 /* 
@@ -183,7 +256,69 @@ void issue_To_execute(int current_cycle) {
  * 	None
  */
 void dispatch_To_issue(int current_cycle) {
-  /* ECE552: YOUR CODE GOES HERE */
+  /* ECE552: Assignment 3 - BEGIN CODE */
+  int i, j;
+  instruction_t * i_instr = NULL;
+  instruction_t * tmp = NULL;
+
+  //check for an available INT FU
+  for(i=0; i<FU_INT_SIZE; i=i+1)
+  {
+    if (fuINT[i] == NULL)
+    {
+       i_instr = NULL; 
+       //select the oldest instruction in RS tables that is ready to exec.
+       for(j=0; j<RESERV_INT_SIZE; j=j+1)
+       {
+          tmp = reservINT[j];
+          //NULL & RAW check -- continue if a tag is not NULL
+          if(tmp == NULL || tmp->Q[0] || tmp->Q[1] || tmp->Q[2])
+            continue;
+          assert(tmp->tom_dispatch_cycle > 0);
+
+          //select not yet issued RS entry
+          if (tmp->tom_issue_cycle == 0) {
+             if(i_instr == NULL)
+               i_instr = tmp; 
+             else if (tmp->tom_dispatch_cycle < i_instr->tom_dispatch_cycle)
+               i_instr = tmp; 
+          }
+       }
+       if(i_instr == NULL)
+         continue;
+       i_instr->tom_issue_cycle = current_cycle;
+       fuINT[i] = i_instr;
+    }
+  }
+  //check for an available FP FU
+  for(i=0; i<FU_FP_SIZE; i=i+1)
+  {
+    if (fuFP[i] == NULL)
+    {
+       i_instr = NULL; 
+       for(j=0; j<RESERV_FP_SIZE; j=j+1)
+       {
+          tmp = reservFP[j];
+          //NULL & RAW check -- continue if a tag is not NULL
+          if(tmp == NULL || tmp->Q[0] || tmp->Q[1] || tmp->Q[2])
+            continue;
+          assert(tmp->tom_dispatch_cycle > 0);
+
+          //select not yet issued RS entry
+          if (tmp->tom_issue_cycle == 0) {
+             if(i_instr == NULL)
+               i_instr = tmp; 
+             else if (tmp->tom_dispatch_cycle < i_instr->tom_dispatch_cycle)
+               i_instr = tmp; 
+          }
+       }
+       if(i_instr == NULL)
+         continue;
+       i_instr->tom_issue_cycle = current_cycle;
+       fuFP[i] = i_instr;
+    }
+  }
+  /* ECE552: Assignment 3 - END CODE */
 }
 
 /* 
@@ -195,38 +330,51 @@ void dispatch_To_issue(int current_cycle) {
  * 	None
  */
 void fetch(instruction_trace_t* trace) {
-  /* ECE552: YOUR CODE GOES HERE */
-  instruction_t f_instr;
+  /* ECE552: Assignment 3 - BEGIN CODE */
+  instruction_t * f_instr;
+
   if (fetch_index == INSTR_TRACE_SIZE)
   {
     printf("INFO: reached the end of instruction trace execution ...\n");
-    return;
+    return true;
   }
 
+  //IFQ full
+  if (instr_queue_size == INSTR_QUEUE_SIZE)
+     return;
+ 
   //skip over TRAP instructions
   do {
-    f_instr = trace->table[fetch_index++];
-  } while(IS_TRAP(f_instr.op) && instr_queue_size != INSTR_QUEUE_SIZE);
-  
+    f_instr = get_instr(trace, fetch_index++);
+  } while(IS_TRAP(f_instr->op) && instr_queue_size <= INSTR_QUEUE_SIZE);
+
   assert(instr_queue_head >= 0 && instr_queue_head < INSTR_QUEUE_SIZE);
-  instr_queue[c_cnt_post_incr(instr_queue_head)] = f_instr; 
+
+  instr_queue[instr_queue_head++] = f_instr; 
+  if (instr_queue_head == INSTR_QUEUE_SIZE)
+     instr_queue_head = 0; 
+  ++instr_queue_size;
+  /* ECE552: Assignment 3 - END CODE */
 }
 
+/* ECE552: Assignment 3 - BEGIN CODE */
 //update the MAP table during dispatch
 void d_update_mt(instruction_t * d_instr)
 {
-  instr_lst_t *   mt_lst_entry, tmp_lst;
+  instr_lst_t *mt_lst_entry;
+  instr_lst_t *tmp_lst;
+
   //update MAP table
   if (d_instr->r_out[0] != DNA)
   {
-     mt_lst_entry =  (instr_lst_t*)malloc(sizeof(instr_lst_t));
-     mt_lst_entry->node = d_rs;
+     mt_lst_entry = (instr_lst_t *)malloc(sizeof(instr_lst_t));
+     mt_lst_entry->node = d_instr;
      mt_lst_entry->next = NULL;
      if (map_table[d_instr->r_out[0]] == NULL) {
        map_table[d_instr->r_out[0]] = mt_lst_entry;
      } else { //there is an existing map-table tag
-       tmp_lst = map_table[d_instr->r_out[0]]
-       while (tmp_lst->next != null) {
+       tmp_lst = map_table[d_instr->r_out[0]];
+       while (tmp_lst->next != NULL) {
          tmp_lst = tmp_lst->next;
        }
        tmp_lst->next = mt_lst_entry;
@@ -234,20 +382,23 @@ void d_update_mt(instruction_t * d_instr)
   } 
   if (d_instr->r_out[1] != DNA)
   {
-     mt_lst_entry =  (instr_lst_t*)malloc(sizeof(instr_lst_t));
-     mt_lst_entry->node = d_rs;
+     mt_lst_entry = (instr_lst_t*)malloc(sizeof(instr_lst_t));
+     mt_lst_entry->node = d_instr;
      mt_lst_entry->next = NULL;
      if (map_table[d_instr->r_out[1]] == NULL) {
        map_table[d_instr->r_out[1]] = mt_lst_entry;
-     } else { //there is an existing map-table tag
-       tmp_lst = map_table[d_instr->r_out[1]]
-       while (tmp_lst->next != null) {
+     } else { 
+       //there is an existing map-table tag; append tag at the list tail
+       tmp_lst = map_table[d_instr->r_out[1]];
+       while (tmp_lst->next != NULL) {
          tmp_lst = tmp_lst->next;
        }
        tmp_lst->next = mt_lst_entry;
      }
   } 
 }
+/* ECE552: Assignment 3 - END CODE */
+
 /* 
  * Description: 
  * 	Calls fetch and dispatches an instruction at the same cycle (if possible)
@@ -258,57 +409,59 @@ void d_update_mt(instruction_t * d_instr)
  * 	None
  */
 void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
-  /* ECE552: YOUR CODE GOES HERE */
+  /* ECE552: Assignment 3 - BEGIN CODE */
   int i;
-  instruction_t   d_instr;
   instruction_t * d_rs;
   fetch(trace);
 
   assert(instr_queue_tail >= 0 && instr_queue_tail < INSTR_QUEUE_SIZE);
-  d_instr = instr_queue[c_cnt_post_incr(instr_queue_tail)]; 
-  d_instr.tom_dispatch_cycle = current_cycle;
+  assert(instr_queue_size > 0 && instr_queue_size <= INSTR_QUEUE_SIZE);
 
-  if (USES_INT_FU(d_instr.op))
+  d_rs = instr_queue[instr_queue_tail--]; 
+  if (instr_queue_tail < 0)
+     instr_queue_tail = INSTR_QUEUE_SIZE - 1;
+  --instr_queue_size;
+
+  d_rs->tom_dispatch_cycle = current_cycle;
+
+  if (USES_INT_FU(d_rs->op))
   {
     for(i=0; i<RESERV_INT_SIZE; ++i)
     {
       if (reservINT[i] == NULL) {
-         d_rs = (instruction_t*) malloc(sizeof(instruction_t));
-         *d_rs = d_instr;
          reservINT[i] = d_rs;
          break;
       }
     }
     printf("INFO: dispatched an INT instruction at cycle %d\n", current_cycle);
   }
-  else if (USES_FP_FU(d_instr.op))
+  else if (USES_FP_FU(d_rs->op))
   {
     for(i=0; i<RESERV_FP_SIZE; ++i)
     {
       if (reservFP[i] == NULL) {
-         d_rs = (instruction_t*) malloc(sizeof(instruction_t));
-         *d_rs = d_instr;
          reservFP[i] = d_rs;
          break;
       }
     }
     printf("INFO: dispatched a FP instruction at cycle %d\n", current_cycle);
   }
-  else if (IS_UNCOND_CTRL(d_instr.op) || IS_COND_CTRL(d_instr.op))
+  else if (IS_UNCOND_CTRL(d_rs->op) || IS_COND_CTRL(d_rs->op))
   {
     /*
     *  unconditional & conditional branches ar enot issued to the reservation stations
     *  they do not use any FU, they do not write to the CDB
     *  they do not cause a control hazard
     */
+    d_rs->tom_issue_cycle = 0;
+    d_rs->tom_execute_cycle = 0;
+    d_rs->tom_cdb_cycle = 0;
     printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
   }
   else
   {
-    printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_instr.op, current_cycle);
+    printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_rs->op, current_cycle);
   }
-
-
   //update map table
   d_update_mt(d_rs);
 
@@ -316,9 +469,9 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
   for (i = 0; i < 3; ++i)
   {
      //note: NULL value == free of RAW (i.e. tag)
-     d_rs->Q[i] = map_table[r_in[i]]->node;
+     d_rs->Q[i] = map_table[d_rs->r_in[i]]->node;
   } 
-
+  /* ECE552: Assignment 3 - END CODE */
 }
 
 /* 
@@ -334,7 +487,10 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
 counter_t runTomasulo(instruction_trace_t* trace)
 {
   //initialize instruction queue
-  int i;
+  int i, reg;
+  instr_lst_t *current;
+  instr_lst_t *prev;
+
   for (i = 0; i < INSTR_QUEUE_SIZE; i++) {
     instr_queue[i] = NULL;
   }
@@ -363,14 +519,31 @@ counter_t runTomasulo(instruction_trace_t* trace)
   }
   
   int cycle = 1;
+  /* ECE552: Assignment 3 - BEGIN CODE */
   while (true) {
-
-     /* ECE552: YOUR CODE GOES HERE */
+     fetch_To_dispatch(trace, cycle);
+     dispatch_To_issue(cycle);
+     issue_To_execute(cycle);
+     execute_To_CDB(cycle);
+     CDB_To_retire(cycle);
      cycle++;
 
      if (is_simulation_done(sim_num_insn))
         break;
   }
   
+  //heap clean-up
+  for (reg = 0; reg < MD_TOTAL_REGS; reg++) {
+     if (map_table[reg] != NULL) {
+       current = map_table[reg];
+       do {
+         prev = current;
+         current = current->next;
+         free(prev);
+       } while (current != NULL);
+     }
+  }
+
+  /* ECE552: Assignment 3 - END CODE */
   return cycle;
 }
