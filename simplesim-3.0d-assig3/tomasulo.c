@@ -106,12 +106,6 @@ typedef struct instruction_list_type
 //The map table keeps track of which instruction produces the value for each register
 static instr_lst_t * map_table[MD_TOTAL_REGS];
 
-
-/* FUNCTIONAL UNITS */
-
-
-/* RESERVATION STATIONS */
-
 /* 
  * Description: 
  * 	Checks if simulation is done by finishing the very last instruction
@@ -123,8 +117,22 @@ static instr_lst_t * map_table[MD_TOTAL_REGS];
  */
 static bool is_simulation_done(counter_t sim_insn) {
   /* ECE552: Assignment 3 - BEGIN CODE */
-
-  return false;
+  int i;
+  bool retval = false;
+  bool clear = true;
+  if (fetch_index == INSTR_TRACE_SIZE)
+  {
+    for (i=0; i<RESERV_INT_SIZE; i=i+1) {
+      if (reservINT[i] != NULL)
+         clear = false;
+    }
+    for (i=0; i<RESERV_FP_SIZE; i=i+1) {
+      if (reservFP[i] != NULL)
+         clear = false;
+    }
+    retval = clear;
+  }
+  return retval;
   /* ECE552: Assignment 3 - END CODE */
 }
 
@@ -139,19 +147,48 @@ static bool is_simulation_done(counter_t sim_insn) {
 void CDB_To_retire(int current_cycle) {
   /* ECE552: Assignment 3 - BEGIN CODE */
   int i;
+  instruction_t * r_instr;
 
-  //free the RS of an entry
+  //free the RS, MapTable of the entry on CDB
   for (i=0; i<RESERV_INT_SIZE; i=i+1) {
-     if(reservINT[i]->tom_cdb_cycle == current_cycle) {
+     if(r_instr->tom_cdb_cycle == current_cycle) {
+       assert(r_instr == NULL);
+       r_instr = reservINT[i];
+       if (map_table[r_instr->r_out[0]] != NULL)
+          map_table[r_instr->r_out[0]] = map_table[r_instr->r_out[0]]->next;
+       if (map_table[r_instr->r_out[1]] != NULL)
+          map_table[r_instr->r_out[1]] = map_table[r_instr->r_out[1]]->next;
        reservINT[i] = NULL;
-       break;
      }
   }
   for (i=0; i<RESERV_FP_SIZE; i=i+1) {
      if(reservFP[i]->tom_cdb_cycle == current_cycle) {
+       assert(r_instr == NULL);
+       r_instr = reservFP[i];
+       if (map_table[r_instr->r_out[0]] != NULL)
+          map_table[r_instr->r_out[0]] = map_table[r_instr->r_out[0]]->next;
+       if (map_table[r_instr->r_out[1]] != NULL)
+          map_table[r_instr->r_out[1]] = map_table[r_instr->r_out[1]]->next;
        reservFP[i] = NULL;
-       break;
      }
+  }
+
+  //clear matching TAGS in RS entries
+  for (i=0; i<RESERV_INT_SIZE; i=i+1) {
+    if (reservINT[i]->Q[0] == r_instr)
+       reservINT[i]->Q[0] = NULL;
+    if (reservINT[i]->Q[1] == r_instr)
+       reservINT[i]->Q[1] = NULL;
+    if (reservINT[i]->Q[2] == r_instr)
+       reservINT[i]->Q[2] = NULL;
+  }
+  for (i=0; i<RESERV_FP_SIZE; i=i+1) {
+    if (reservFP[i]->Q[0] == r_instr)
+       reservFP[i]->Q[0] = NULL;
+    if (reservFP[i]->Q[1] == r_instr)
+       reservFP[i]->Q[1] = NULL;
+    if (reservFP[i]->Q[2] == r_instr)
+       reservFP[i]->Q[2] = NULL;
   }
 
   /* ECE552: Assignment 3 - END CODE */
@@ -204,12 +241,15 @@ void execute_To_CDB(int current_cycle) {
        }
     }
   }
-  if (c_instr == NULL)
+
+  commonDataBus = c_instr;
+  if (commonDataBus == NULL)
     return;
-  c_instr->tom_cdb_cycle = current_cycle; 
+  commonDataBus->tom_cdb_cycle = current_cycle; 
+  
 
   //clear FU, RS of the completed instruction
-  if(fp_fu) {
+  if (fp_fu) {
    fuFP[fu_idx] = NULL;
   } else {
    fuINT[fu_idx] = NULL;
@@ -336,7 +376,7 @@ void fetch(instruction_trace_t* trace) {
   if (fetch_index == INSTR_TRACE_SIZE)
   {
     printf("INFO: reached the end of instruction trace execution ...\n");
-    return true;
+    return;
   }
 
   //IFQ full
