@@ -97,14 +97,19 @@ static instruction_t* commonDataBus = NULL;
 //the index of the last instruction fetched
 static int fetch_index = 0;
 
-typedef struct instruction_list_type
-{
-  instruction_t                * node; //pointer to RS entry
-  struct instruction_list_type * next; //next itne
-} instr_lst_t;
-
 //The map table keeps track of which instruction produces the value for each register
-static instr_lst_t * map_table[MD_TOTAL_REGS];
+static instruction_t * map_table[MD_TOTAL_REGS];
+
+static void print_instr (instruction_t* instr) {
+
+  md_print_insn(instr->inst, instr->pc, stdout);
+  myfprintf(stdout, "\t%d\t%d\t%d\t%d\n", 
+	    instr->tom_dispatch_cycle,
+	    instr->tom_issue_cycle,
+	    instr->tom_execute_cycle,
+	    instr->tom_cdb_cycle);
+}
+
 
 /* 
  * Description: 
@@ -147,47 +152,57 @@ static bool is_simulation_done(counter_t sim_insn) {
 void CDB_To_retire(int current_cycle) {
   /* ECE552: Assignment 3 - BEGIN CODE */
   int i;
-  instruction_t * r_instr;
+  instruction_t * r_instr = NULL;
 
   //free the RS, MapTable of the entry on CDB
   for (i=0; i<RESERV_INT_SIZE; i=i+1) {
-     if(r_instr->tom_cdb_cycle == current_cycle) {
+     if (reservINT[i] != NULL && reservINT[i]->tom_cdb_cycle == current_cycle) {
        assert(r_instr == NULL);
        r_instr = reservINT[i];
-       if (map_table[r_instr->r_out[0]] != NULL)
-          map_table[r_instr->r_out[0]] = map_table[r_instr->r_out[0]]->next;
-       if (map_table[r_instr->r_out[1]] != NULL)
-          map_table[r_instr->r_out[1]] = map_table[r_instr->r_out[1]]->next;
+       if (map_table[r_instr->r_out[0]] == r_instr)
+          map_table[r_instr->r_out[0]] = NULL;
+       if (map_table[r_instr->r_out[1]] == r_instr)
+          map_table[r_instr->r_out[1]] = NULL;
+
+       assert(r_instr == commonDataBus);
+       printf("INFO: CLEANUP an INT RS#%d at cycle %d\n", i, current_cycle);
+       print_instr(commonDataBus);
        reservINT[i] = NULL;
      }
   }
   for (i=0; i<RESERV_FP_SIZE; i=i+1) {
-     if(reservFP[i]->tom_cdb_cycle == current_cycle) {
+     if (reservFP[i] != NULL && reservFP[i]->tom_cdb_cycle == current_cycle) {
        assert(r_instr == NULL);
        r_instr = reservFP[i];
-       if (map_table[r_instr->r_out[0]] != NULL)
-          map_table[r_instr->r_out[0]] = map_table[r_instr->r_out[0]]->next;
-       if (map_table[r_instr->r_out[1]] != NULL)
-          map_table[r_instr->r_out[1]] = map_table[r_instr->r_out[1]]->next;
+       if (map_table[r_instr->r_out[0]] == r_instr)
+          map_table[r_instr->r_out[0]] = NULL;
+       if (map_table[r_instr->r_out[1]] == r_instr)
+          map_table[r_instr->r_out[1]] = NULL;
+
+       assert(r_instr == commonDataBus);
+       printf("INFO: CLEANUP a FP RS#%d at cycle %d\n",i, current_cycle);
+       print_instr(commonDataBus);
        reservFP[i] = NULL;
      }
   }
+  if(r_instr == NULL)
+    return;
 
   //clear matching TAGS in RS entries
   for (i=0; i<RESERV_INT_SIZE; i=i+1) {
-    if (reservINT[i]->Q[0] == r_instr)
+    if (reservINT[i] != NULL && reservINT[i]->Q[0] == r_instr)
        reservINT[i]->Q[0] = NULL;
-    if (reservINT[i]->Q[1] == r_instr)
+    if (reservINT[i] != NULL && reservINT[i]->Q[1] == r_instr)
        reservINT[i]->Q[1] = NULL;
-    if (reservINT[i]->Q[2] == r_instr)
+    if (reservINT[i] != NULL && reservINT[i]->Q[2] == r_instr)
        reservINT[i]->Q[2] = NULL;
   }
   for (i=0; i<RESERV_FP_SIZE; i=i+1) {
-    if (reservFP[i]->Q[0] == r_instr)
+    if (reservFP[i] != NULL && reservFP[i]->Q[0] == r_instr)
        reservFP[i]->Q[0] = NULL;
-    if (reservFP[i]->Q[1] == r_instr)
+    if (reservFP[i] != NULL && reservFP[i]->Q[1] == r_instr)
        reservFP[i]->Q[1] = NULL;
-    if (reservFP[i]->Q[2] == r_instr)
+    if (reservFP[i] != NULL && reservFP[i]->Q[2] == r_instr)
        reservFP[i]->Q[2] = NULL;
   }
 
@@ -209,6 +224,8 @@ void execute_To_CDB(int current_cycle) {
   bool fp_fu = false;
 
   instruction_t * c_instr = NULL;
+  commonDataBus = NULL;
+
   for(i=0; i<FU_INT_SIZE; i=i+1)
   {
     if (fuINT[i] != NULL && fuINT[i]->tom_execute_cycle > 0) {
@@ -246,7 +263,9 @@ void execute_To_CDB(int current_cycle) {
   if (commonDataBus == NULL)
     return;
   commonDataBus->tom_cdb_cycle = current_cycle; 
-  
+  printf("INFO: Writeback an instruction at cycle %d\n", current_cycle);
+  print_instr(commonDataBus);
+
 
   //clear FU, RS of the completed instruction
   if (fp_fu) {
@@ -254,7 +273,6 @@ void execute_To_CDB(int current_cycle) {
   } else {
    fuINT[fu_idx] = NULL;
   }
-
   /* ECE552: Assignment 3 - END CODE */
 }
 
@@ -271,18 +289,75 @@ void execute_To_CDB(int current_cycle) {
  */
 void issue_To_execute(int current_cycle) {
   /* ECE552: Assignment 3 - BEGIN CODE */
-  int i; 
+  int i, j; 
+  instruction_t * e_instr = NULL;
+  instruction_t * tmp = NULL;
 
+  //check for an available INT FU
   for(i=0; i<FU_INT_SIZE; i=i+1)
   {
-    if (fuINT[i] != NULL && fuINT[i]->tom_execute_cycle == 0)
-       fuINT[i]->tom_execute_cycle = current_cycle;
+    if (fuINT[i] == NULL)
+    {
+       e_instr = NULL; 
+       //select the oldest instruction in RS tables that is ready to exec.
+       for(j=0; j<RESERV_INT_SIZE; j=j+1)
+       {
+          tmp = reservINT[j];
+          //NULL & RAW check -- continue if a tag is not NULL
+          if(tmp == NULL || tmp->Q[0] != NULL || tmp->Q[1] != NULL || tmp->Q[2] != NULL)
+            continue;
+          assert(tmp->tom_dispatch_cycle > 0);
+
+          //select not yet executed RS entry, but issued 
+          if (tmp->tom_execute_cycle == 0 && tmp->tom_issue_cycle > 1 &&
+              tmp->tom_issue_cycle < current_cycle) {
+             if (e_instr == NULL)
+               e_instr = tmp; 
+             else if (tmp->tom_dispatch_cycle < e_instr->tom_dispatch_cycle)
+               e_instr = tmp; 
+          }
+       }
+       if(e_instr == NULL)
+         break;
+       e_instr->tom_execute_cycle = current_cycle;
+       fuINT[i] = e_instr;
+
+       printf("INFO: executed an INT instruction at cycle %d\n", current_cycle);
+       print_instr(e_instr);
+    }
   }
 
+  //check for an available FP FU
   for(i=0; i<FU_FP_SIZE; i=i+1)
   {
-    if (fuFP[i] != NULL && fuFP[i]->tom_execute_cycle == 0)
-       fuFP[i]->tom_execute_cycle = current_cycle;
+    if (fuFP[i] == NULL)
+    {
+       e_instr = NULL; 
+       for(j=0; j<RESERV_FP_SIZE; j=j+1)
+       {
+          tmp = reservFP[j];
+          //NULL & RAW check -- continue if a tag is not NULL
+          if(tmp == NULL || tmp->Q[0] != NULL || tmp->Q[1] != NULL || tmp->Q[2] != NULL)
+            continue;
+          assert(tmp->tom_dispatch_cycle > 0);
+
+          //select not yet executed RS entry, but issued 
+          if (tmp->tom_execute_cycle == 0 && tmp->tom_issue_cycle > 1 &&
+              tmp->tom_issue_cycle < current_cycle) {
+             if(e_instr == NULL)
+               e_instr = tmp; 
+             else if (tmp->tom_dispatch_cycle < e_instr->tom_dispatch_cycle)
+               e_instr = tmp; 
+          }
+       }
+       if(e_instr == NULL)
+         continue;
+       e_instr->tom_execute_cycle = current_cycle;
+       fuFP[i] = e_instr;
+
+       printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
+       print_instr(e_instr);
+    }
   }
   /* ECE552: Assignment 3 - END CODE */
 }
@@ -297,65 +372,31 @@ void issue_To_execute(int current_cycle) {
  */
 void dispatch_To_issue(int current_cycle) {
   /* ECE552: Assignment 3 - BEGIN CODE */
-  int i, j;
-  instruction_t * i_instr = NULL;
-  instruction_t * tmp = NULL;
+  int i;
+  bool issued = false;
 
-  //check for an available INT FU
-  for(i=0; i<FU_INT_SIZE; i=i+1)
+  for(i=0; i<RESERV_INT_SIZE; i=i+1)
   {
-    if (fuINT[i] == NULL)
-    {
-       i_instr = NULL; 
-       //select the oldest instruction in RS tables that is ready to exec.
-       for(j=0; j<RESERV_INT_SIZE; j=j+1)
-       {
-          tmp = reservINT[j];
-          //NULL & RAW check -- continue if a tag is not NULL
-          if(tmp == NULL || tmp->Q[0] || tmp->Q[1] || tmp->Q[2])
-            continue;
-          assert(tmp->tom_dispatch_cycle > 0);
-
-          //select not yet issued RS entry
-          if (tmp->tom_issue_cycle == 0) {
-             if(i_instr == NULL)
-               i_instr = tmp; 
-             else if (tmp->tom_dispatch_cycle < i_instr->tom_dispatch_cycle)
-               i_instr = tmp; 
-          }
-       }
-       if(i_instr == NULL)
-         continue;
-       i_instr->tom_issue_cycle = current_cycle;
-       fuINT[i] = i_instr;
+    if (reservINT[i] != NULL && reservINT[i]->tom_issue_cycle == 0  &&
+       reservINT[i]->tom_dispatch_cycle == (current_cycle - 1)) {
+       assert(current_cycle >= 2);
+       assert(!issued);
+       reservINT[i]->tom_issue_cycle = current_cycle;
+       printf("INFO: issued an INT instruction at cycle %d\n", current_cycle);
+       print_instr(reservINT[i]);
+       issued = true;
     }
   }
-  //check for an available FP FU
-  for(i=0; i<FU_FP_SIZE; i=i+1)
+  for(i=0; i<RESERV_FP_SIZE; i=i+1)
   {
-    if (fuFP[i] == NULL)
-    {
-       i_instr = NULL; 
-       for(j=0; j<RESERV_FP_SIZE; j=j+1)
-       {
-          tmp = reservFP[j];
-          //NULL & RAW check -- continue if a tag is not NULL
-          if(tmp == NULL || tmp->Q[0] || tmp->Q[1] || tmp->Q[2])
-            continue;
-          assert(tmp->tom_dispatch_cycle > 0);
-
-          //select not yet issued RS entry
-          if (tmp->tom_issue_cycle == 0) {
-             if(i_instr == NULL)
-               i_instr = tmp; 
-             else if (tmp->tom_dispatch_cycle < i_instr->tom_dispatch_cycle)
-               i_instr = tmp; 
-          }
-       }
-       if(i_instr == NULL)
-         continue;
-       i_instr->tom_issue_cycle = current_cycle;
-       fuFP[i] = i_instr;
+    if (reservFP[i] != NULL && reservFP[i]->tom_issue_cycle == 0  &&
+        reservFP[i]->tom_dispatch_cycle == (current_cycle - 1)) {
+       assert(current_cycle >= 2);
+       assert(!issued);
+       reservFP[i]->tom_issue_cycle = current_cycle;
+       printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
+       print_instr(reservFP[i]);
+       issued = true;
     }
   }
   /* ECE552: Assignment 3 - END CODE */
@@ -369,13 +410,16 @@ void dispatch_To_issue(int current_cycle) {
  * Returns:
  * 	None
  */
+static bool end = false;
 void fetch(instruction_trace_t* trace) {
   /* ECE552: Assignment 3 - BEGIN CODE */
   instruction_t * f_instr;
 
-  if (fetch_index == INSTR_TRACE_SIZE)
+  if (fetch_index >= INSTR_TRACE_SIZE)
   {
-    printf("INFO: reached the end of instruction trace execution ...\n");
+    if(!end)
+      printf("INFO: reached the end of instruction trace execution ...\n");
+    end = true;
     return;
   }
 
@@ -401,40 +445,14 @@ void fetch(instruction_trace_t* trace) {
 //update the MAP table during dispatch
 void d_update_mt(instruction_t * d_instr)
 {
-  instr_lst_t *mt_lst_entry;
-  instr_lst_t *tmp_lst;
-
   //update MAP table
   if (d_instr->r_out[0] != DNA)
   {
-     mt_lst_entry = (instr_lst_t *)malloc(sizeof(instr_lst_t));
-     mt_lst_entry->node = d_instr;
-     mt_lst_entry->next = NULL;
-     if (map_table[d_instr->r_out[0]] == NULL) {
-       map_table[d_instr->r_out[0]] = mt_lst_entry;
-     } else { //there is an existing map-table tag
-       tmp_lst = map_table[d_instr->r_out[0]];
-       while (tmp_lst->next != NULL) {
-         tmp_lst = tmp_lst->next;
-       }
-       tmp_lst->next = mt_lst_entry;
-     }
+     map_table[d_instr->r_out[0]] = d_instr;
   } 
   if (d_instr->r_out[1] != DNA)
   {
-     mt_lst_entry = (instr_lst_t*)malloc(sizeof(instr_lst_t));
-     mt_lst_entry->node = d_instr;
-     mt_lst_entry->next = NULL;
-     if (map_table[d_instr->r_out[1]] == NULL) {
-       map_table[d_instr->r_out[1]] = mt_lst_entry;
-     } else { 
-       //there is an existing map-table tag; append tag at the list tail
-       tmp_lst = map_table[d_instr->r_out[1]];
-       while (tmp_lst->next != NULL) {
-         tmp_lst = tmp_lst->next;
-       }
-       tmp_lst->next = mt_lst_entry;
-     }
+     map_table[d_instr->r_out[1]] = d_instr;
   } 
 }
 /* ECE552: Assignment 3 - END CODE */
@@ -455,62 +473,87 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
   fetch(trace);
 
   assert(instr_queue_tail >= 0 && instr_queue_tail < INSTR_QUEUE_SIZE);
+  if (instr_queue_size == 0) {
+    assert(end);
+    return;
+  }
   assert(instr_queue_size > 0 && instr_queue_size <= INSTR_QUEUE_SIZE);
 
-  d_rs = instr_queue[instr_queue_tail--]; 
-  if (instr_queue_tail < 0)
-     instr_queue_tail = INSTR_QUEUE_SIZE - 1;
-  --instr_queue_size;
+  d_rs = instr_queue[instr_queue_tail]; 
 
-  d_rs->tom_dispatch_cycle = current_cycle;
+  d_rs->tom_dispatch_cycle = 0;
+  d_rs->tom_issue_cycle = 0;
+  d_rs->tom_execute_cycle = 0;
+  d_rs->tom_cdb_cycle = 0;
 
   if (USES_INT_FU(d_rs->op))
   {
     for(i=0; i<RESERV_INT_SIZE; ++i)
     {
       if (reservINT[i] == NULL) {
+         d_rs->tom_dispatch_cycle = current_cycle;
+         printf("INFO: dispatched an INT instruction to INT RS #%d at cycle %d\n", i, current_cycle);
          reservINT[i] = d_rs;
-         break;
+         //check for RAWs, update TAGs
+         for (i = 0; i < 3; ++i)
+         {
+            //note: NULL value == free of RAW (i.e. tag)
+            d_rs->Q[i] = map_table[d_rs->r_in[i]];
+         } 
+         //update map table
+         d_update_mt(d_rs);
+        break;
       }
     }
-    printf("INFO: dispatched an INT instruction at cycle %d\n", current_cycle);
   }
   else if (USES_FP_FU(d_rs->op))
   {
     for(i=0; i<RESERV_FP_SIZE; ++i)
     {
       if (reservFP[i] == NULL) {
+         d_rs->tom_dispatch_cycle = current_cycle;
+         printf("INFO: dispatched a FP instruction to FP RS #%d at cycle %d\n", i, current_cycle);
          reservFP[i] = d_rs;
+         //check for RAWs, update TAGs
+         for (i = 0; i < 3; ++i)
+         {
+            //note: NULL value == free of RAW (i.e. tag)
+            d_rs->Q[i] = map_table[d_rs->r_in[i]];
+         } 
+         //update map table
+         d_update_mt(d_rs);
          break;
       }
     }
-    printf("INFO: dispatched a FP instruction at cycle %d\n", current_cycle);
   }
   else if (IS_UNCOND_CTRL(d_rs->op) || IS_COND_CTRL(d_rs->op))
   {
+    d_rs->tom_dispatch_cycle = current_cycle;
+    printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
     /*
     *  unconditional & conditional branches ar enot issued to the reservation stations
     *  they do not use any FU, they do not write to the CDB
     *  they do not cause a control hazard
     */
-    d_rs->tom_issue_cycle = 0;
-    d_rs->tom_execute_cycle = 0;
-    d_rs->tom_cdb_cycle = 0;
-    printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
   }
   else
   {
+    d_rs->tom_dispatch_cycle = current_cycle;
     printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_rs->op, current_cycle);
   }
-  //update map table
-  d_update_mt(d_rs);
 
-  //check for RAWs, update TAGs
-  for (i = 0; i < 3; ++i)
-  {
-     //note: NULL value == free of RAW (i.e. tag)
-     d_rs->Q[i] = map_table[d_rs->r_in[i]]->node;
-  } 
+  //skip update if a RS was not found
+  if (d_rs->tom_dispatch_cycle == 0)
+    return;
+  print_instr(d_rs);
+
+
+  //IFQ tail ptr update
+  ++instr_queue_tail;
+  if (instr_queue_tail == INSTR_QUEUE_SIZE)
+     instr_queue_tail = 0;
+  --instr_queue_size;
+
   /* ECE552: Assignment 3 - END CODE */
 }
 
@@ -528,9 +571,7 @@ counter_t runTomasulo(instruction_trace_t* trace)
 {
   //initialize instruction queue
   int i, reg;
-  instr_lst_t *current;
-  instr_lst_t *prev;
-
+  
   for (i = 0; i < INSTR_QUEUE_SIZE; i++) {
     instr_queue[i] = NULL;
   }
@@ -572,18 +613,6 @@ counter_t runTomasulo(instruction_trace_t* trace)
         break;
   }
   
-  //heap clean-up
-  for (reg = 0; reg < MD_TOTAL_REGS; reg++) {
-     if (map_table[reg] != NULL) {
-       current = map_table[reg];
-       do {
-         prev = current;
-         current = current->next;
-         free(prev);
-       } while (current != NULL);
-     }
-  }
-
   /* ECE552: Assignment 3 - END CODE */
   return cycle;
 }
