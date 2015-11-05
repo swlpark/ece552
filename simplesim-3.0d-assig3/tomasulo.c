@@ -95,14 +95,25 @@ static instruction_t* fuFP[FU_FP_SIZE];
 static instruction_t* commonDataBus = NULL;
 
 //the index of the last instruction fetched
-static int fetch_index = 0;
+static int fetch_index = 1;
 
 //The map table keeps track of which instruction produces the value for each register
 static instruction_t * map_table[MD_TOTAL_REGS];
 
-static void print_instr (instruction_t* instr) {
+//prints a single instruction
+static void print_check_instr(instruction_t* instr) {
 
   md_print_insn(instr->inst, instr->pc, stdout);
+  if (USES_INT_FU(instr->op) || USES_FP_FU(instr->op)) {
+    assert(instr->tom_dispatch_cycle > 0 && instr->tom_dispatch_cycle == (instr->tom_issue_cycle -1) && 
+    instr->tom_dispatch_cycle < instr->tom_execute_cycle && instr->tom_dispatch_cycle < instr->tom_cdb_cycle);
+    assert(instr->tom_cdb_cycle == (instr->tom_execute_cycle + 4) 
+        || instr->tom_cdb_cycle == (instr->tom_execute_cycle + 5)
+        || instr->tom_cdb_cycle == (instr->tom_execute_cycle + 6)
+        || instr->tom_cdb_cycle == (instr->tom_execute_cycle + 9)
+        || instr->tom_cdb_cycle == (instr->tom_execute_cycle + 10)
+        || instr->tom_cdb_cycle == (instr->tom_execute_cycle + 11));
+  }
   myfprintf(stdout, "\t%d\t%d\t%d\t%d\n", 
 	    instr->tom_dispatch_cycle,
 	    instr->tom_issue_cycle,
@@ -110,6 +121,29 @@ static void print_instr (instruction_t* instr) {
 	    instr->tom_cdb_cycle);
 }
 
+//prints all the instructions inside the given trace for pipeline
+void check_all(instruction_trace_t* trace, int sim_num_insn) {
+
+  fprintf(stdout, "TOMASULO TABLE\n");
+
+  int printed_count = 0;
+  int index = 1;
+  while (true) {
+ 
+     if (1) { // if (printed_count > 9999900) {
+        print_check_instr(&trace->table[index]);
+     }
+     printed_count++;
+     if (printed_count == sim_num_insn)
+        break;
+     if (++index == INSTR_TRACE_SIZE) {
+        trace = trace->next;
+	index = 0;
+	if (trace == NULL)
+	   break;
+     }
+   }
+}
 
 /* 
  * Description: 
@@ -125,7 +159,7 @@ static bool is_simulation_done(counter_t sim_insn) {
   int i;
   bool retval = false;
   bool clear = true;
-  if (fetch_index == INSTR_TRACE_SIZE)
+  if (fetch_index > sim_insn)
   {
     for (i=0; i<RESERV_INT_SIZE; i=i+1) {
       if (reservINT[i] != NULL)
@@ -157,31 +191,33 @@ void CDB_To_retire(int current_cycle) {
   //free the RS, MapTable of the entry on CDB
   for (i=0; i<RESERV_INT_SIZE; i=i+1) {
      if (reservINT[i] != NULL && reservINT[i]->tom_cdb_cycle == current_cycle) {
-       assert(r_instr == NULL);
-       r_instr = reservINT[i];
-       if (map_table[r_instr->r_out[0]] == r_instr)
-          map_table[r_instr->r_out[0]] = NULL;
-       if (map_table[r_instr->r_out[1]] == r_instr)
-          map_table[r_instr->r_out[1]] = NULL;
-
-       assert(r_instr == commonDataBus);
-       printf("INFO: CLEANUP an INT RS#%d at cycle %d\n", i, current_cycle);
-       print_instr(commonDataBus);
+       if(!IS_STORE(reservINT[i]->op)) {
+         r_instr = reservINT[i];
+         if (map_table[r_instr->r_out[0]] == r_instr)
+            map_table[r_instr->r_out[0]] = NULL;
+         if (map_table[r_instr->r_out[1]] == r_instr)
+            map_table[r_instr->r_out[1]] = NULL;
+       }
+       assert(r_instr == commonDataBus || IS_STORE(reservINT[i]->op));
+       //if(IS_STORE(r_instr->op)) r_instr = NULL;
+       //printf("INFO: CLEANUP an INT RS#%d at cycle %d\n", i, current_cycle);
+       //print_instr(commonDataBus);
        reservINT[i] = NULL;
      }
   }
   for (i=0; i<RESERV_FP_SIZE; i=i+1) {
      if (reservFP[i] != NULL && reservFP[i]->tom_cdb_cycle == current_cycle) {
-       assert(r_instr == NULL);
-       r_instr = reservFP[i];
-       if (map_table[r_instr->r_out[0]] == r_instr)
-          map_table[r_instr->r_out[0]] = NULL;
-       if (map_table[r_instr->r_out[1]] == r_instr)
-          map_table[r_instr->r_out[1]] = NULL;
-
-       assert(r_instr == commonDataBus);
-       printf("INFO: CLEANUP a FP RS#%d at cycle %d\n",i, current_cycle);
-       print_instr(commonDataBus);
+       if(!IS_STORE(reservFP[i]->op)) {
+         r_instr = reservFP[i];
+         if (map_table[r_instr->r_out[0]] == r_instr)
+            map_table[r_instr->r_out[0]] = NULL;
+         if (map_table[r_instr->r_out[1]] == r_instr)
+            map_table[r_instr->r_out[1]] = NULL;
+       }
+       assert(r_instr == commonDataBus || IS_STORE(reservFP[i]->op));
+       //if(IS_STORE(r_instr->op)) r_instr = NULL;
+       //printf("INFO: CLEANUP a FP RS#%d at cycle %d\n",i, current_cycle);
+       //print_instr(commonDataBus);
        reservFP[i] = NULL;
      }
   }
@@ -223,6 +259,7 @@ void execute_To_CDB(int current_cycle) {
   int fu_idx = -1;
   bool fp_fu = false;
 
+  //CDB instruction <= resource contention
   instruction_t * c_instr = NULL;
   commonDataBus = NULL;
 
@@ -231,7 +268,10 @@ void execute_To_CDB(int current_cycle) {
     if (fuINT[i] != NULL && fuINT[i]->tom_execute_cycle > 0) {
        cdb_cycle = fuINT[i]->tom_execute_cycle + 4;
        if(cdb_cycle <= current_cycle) {
-         if(c_instr == NULL) {
+         if(IS_STORE(fuINT[i]->op)) {
+           fuINT[i]->tom_cdb_cycle = current_cycle; 
+           fuINT[i] = NULL;
+         } else if(c_instr == NULL) {
            c_instr = fuINT[i];
            fu_idx = i;
          } else if(fuINT[i]->tom_dispatch_cycle < c_instr->tom_dispatch_cycle) {
@@ -246,7 +286,10 @@ void execute_To_CDB(int current_cycle) {
     if (fuFP[i] != NULL && fuFP[i]->tom_execute_cycle > 0) {
        cdb_cycle = fuFP[i]->tom_execute_cycle + 9;
        if(cdb_cycle <= current_cycle) {
-         if(c_instr == NULL) {
+         if(IS_STORE(fuFP[i]->op)) {
+           fuFP[i]->tom_cdb_cycle = current_cycle; 
+           fuFP[i] = NULL;
+         } else if(c_instr == NULL) {
            c_instr = fuFP[i];
            fu_idx = i;
            fp_fu = true;
@@ -263,8 +306,8 @@ void execute_To_CDB(int current_cycle) {
   if (commonDataBus == NULL)
     return;
   commonDataBus->tom_cdb_cycle = current_cycle; 
-  printf("INFO: Writeback an instruction at cycle %d\n", current_cycle);
-  print_instr(commonDataBus);
+  //printf("INFO: Writeback an instruction at cycle %d\n", current_cycle);
+  //print_instr(commonDataBus);
 
 
   //clear FU, RS of the completed instruction
@@ -322,8 +365,8 @@ void issue_To_execute(int current_cycle) {
        e_instr->tom_execute_cycle = current_cycle;
        fuINT[i] = e_instr;
 
-       printf("INFO: executed an INT instruction at cycle %d\n", current_cycle);
-       print_instr(e_instr);
+       //printf("INFO: executed an INT instruction at cycle %d\n", current_cycle);
+       //print_instr(e_instr);
     }
   }
 
@@ -355,8 +398,8 @@ void issue_To_execute(int current_cycle) {
        e_instr->tom_execute_cycle = current_cycle;
        fuFP[i] = e_instr;
 
-       printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
-       print_instr(e_instr);
+       //printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
+       //print_instr(e_instr);
     }
   }
   /* ECE552: Assignment 3 - END CODE */
@@ -382,8 +425,8 @@ void dispatch_To_issue(int current_cycle) {
        assert(current_cycle >= 2);
        assert(!issued);
        reservINT[i]->tom_issue_cycle = current_cycle;
-       printf("INFO: issued an INT instruction at cycle %d\n", current_cycle);
-       print_instr(reservINT[i]);
+       //printf("INFO: issued an INT instruction at cycle %d\n", current_cycle);
+       //print_instr(reservINT[i]);
        issued = true;
     }
   }
@@ -394,8 +437,8 @@ void dispatch_To_issue(int current_cycle) {
        assert(current_cycle >= 2);
        assert(!issued);
        reservFP[i]->tom_issue_cycle = current_cycle;
-       printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
-       print_instr(reservFP[i]);
+       //printf("INFO: issued a FP instruction at cycle %d\n", current_cycle);
+       //print_instr(reservFP[i]);
        issued = true;
     }
   }
@@ -415,7 +458,9 @@ void fetch(instruction_trace_t* trace) {
   /* ECE552: Assignment 3 - BEGIN CODE */
   instruction_t * f_instr;
 
-  if (fetch_index >= INSTR_TRACE_SIZE)
+  //fetch_index == 0 at start
+  //if (fetch_index >= sim_num_insn)
+  if (fetch_index > sim_num_insn)
   {
     if(!end)
       printf("INFO: reached the end of instruction trace execution ...\n");
@@ -492,7 +537,7 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
     {
       if (reservINT[i] == NULL) {
          d_rs->tom_dispatch_cycle = current_cycle;
-         printf("INFO: dispatched an INT instruction to INT RS #%d at cycle %d\n", i, current_cycle);
+         //printf("INFO: dispatched an INT instruction to INT RS #%d at cycle %d\n", i, current_cycle);
          reservINT[i] = d_rs;
          //check for RAWs, update TAGs
          for (i = 0; i < 3; ++i)
@@ -512,7 +557,7 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
     {
       if (reservFP[i] == NULL) {
          d_rs->tom_dispatch_cycle = current_cycle;
-         printf("INFO: dispatched a FP instruction to FP RS #%d at cycle %d\n", i, current_cycle);
+         //printf("INFO: dispatched a FP instruction to FP RS #%d at cycle %d\n", i, current_cycle);
          reservFP[i] = d_rs;
          //check for RAWs, update TAGs
          for (i = 0; i < 3; ++i)
@@ -529,7 +574,7 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
   else if (IS_UNCOND_CTRL(d_rs->op) || IS_COND_CTRL(d_rs->op))
   {
     d_rs->tom_dispatch_cycle = current_cycle;
-    printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
+    //printf("INFO: dispatched a branch instruction at cycle %d\n", current_cycle);
     /*
     *  unconditional & conditional branches ar enot issued to the reservation stations
     *  they do not use any FU, they do not write to the CDB
@@ -539,13 +584,13 @@ void fetch_To_dispatch(instruction_trace_t* trace, int current_cycle) {
   else
   {
     d_rs->tom_dispatch_cycle = current_cycle;
-    printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_rs->op, current_cycle);
+    //printf("WARNING: Unhandled instruction opcode at IFQ: %x, at cycle %d\n", d_rs->op, current_cycle);
   }
 
   //skip update if a RS was not found
   if (d_rs->tom_dispatch_cycle == 0)
     return;
-  print_instr(d_rs);
+  //print_instr(d_rs);
 
 
   //IFQ tail ptr update
@@ -609,8 +654,10 @@ counter_t runTomasulo(instruction_trace_t* trace)
      CDB_To_retire(cycle);
      cycle++;
 
-     if (is_simulation_done(sim_num_insn))
+     if (is_simulation_done(sim_num_insn)) {
+        check_all(trace, 1000000); 
         break;
+     }
   }
   
   /* ECE552: Assignment 3 - END CODE */
