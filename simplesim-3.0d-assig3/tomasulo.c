@@ -100,10 +100,13 @@ static int fetch_index = 1;
 static instruction_t * map_table[MD_TOTAL_REGS];
 
 //prints a single instruction
+/* ECE552: Assignment 3 - BEGIN CODE */
 static void print_check_instr(instruction_t* instr) {
   static instruction_t * previous = NULL;
 
+#ifdef _DEBUG_
   md_print_insn(instr->inst, instr->pc, stdout);
+#endif
   if (USES_INT_FU(instr->op) || USES_FP_FU(instr->op)) {
     if(IS_STORE(instr->op)) {
       assert(instr->tom_dispatch_cycle > 0 && instr->tom_dispatch_cycle == (instr->tom_issue_cycle -1) && 
@@ -125,16 +128,17 @@ static void print_check_instr(instruction_t* instr) {
     }
     previous = instr;
   }
+#ifdef _DEBUG_
   myfprintf(stdout, "\t%d\t%d\t%d\t%d\n", 
 	    instr->tom_dispatch_cycle,
 	    instr->tom_issue_cycle,
 	    instr->tom_execute_cycle,
 	    instr->tom_cdb_cycle);
+#endif
 }
 
 //prints all the instructions inside the given trace for pipeline
 void check_all(instruction_trace_t* trace, int sim_num_insn) {
-  fprintf(stdout, "TOMASULO TABLE\n");
 
   int printed_count = 0;
   int index = 1;
@@ -154,6 +158,7 @@ void check_all(instruction_trace_t* trace, int sim_num_insn) {
      }
    }
 }
+/* ECE552: Assignment 3 - END CODE */
 
 /* 
  * Description: 
@@ -460,8 +465,10 @@ void fetch(instruction_trace_t* trace) {
 
   if (fetch_index > sim_num_insn)
   {
+#ifdef _DEBUG_
     if(!end)
       printf("INFO: reached the end of instruction trace execution ...\n");
+#endif
     end = true;
     return;
   }
