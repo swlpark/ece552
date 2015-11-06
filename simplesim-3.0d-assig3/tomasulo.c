@@ -240,7 +240,6 @@ void execute_To_CDB(int current_cycle) {
   int fu_idx = -1;
   bool fp_fu = false;
   
-  //update MapTable & TAGS on RS from previous commonDataBus
   if (commonDataBus != NULL) {
      assert(current_cycle == commonDataBus->tom_cdb_cycle); 
 
