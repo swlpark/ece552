@@ -514,11 +514,13 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
+
 	; 
 }
 
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
+
 	; 
 }
 
