@@ -269,6 +269,9 @@ void cache_stats(struct cache_t *cp, FILE *stream);
 void generate_prefetch(struct cache_t *cp, md_addr_t addr);
 
 /* Next Line Prefetcher */
+void fetch_cache_blk(struct cache_t *cp, md_addr_t addr);
+
+/* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr);
 
 /* Stride Prefetcher */
