@@ -66,7 +66,7 @@
 
 /* extract/reconstruct a block address */
 #define CACHE_BADDR(cp, addr)	((addr) & ~(cp)->blk_mask)
-#define CACHE_MK_BADDR(cp, tag, set)					\
+#define CACHE_MK_BADDR(cp,  tag, set)					\
   (((tag) << (cp)->tag_shift)|((set) << (cp)->set_shift))
 
 /* index an array of cache blocks, non-trivial due to variable length blocks */
@@ -505,11 +505,89 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 
 }
 
-static
+void replace_cache_blk (struct cache_t *cp, md_addr_t addr) {
+  md_addr_t tag = CACHE_TAG(cp, addr);
+  md_addr_t set = CACHE_SET(cp, addr);
+  md_addr_t bofs = CACHE_BLK(cp, addr);
+
+  struct cache_blk_t *repl;
+  //check if the block already exists in cache
+  if (cp->hsize) {
+      /* higly-associativity cache, access through the per-set hash tables */
+      int hindex = CACHE_HASH(cp, tag);
+
+      for (blk=cp->sets[set].hash[hindex]; blk; blk=blk->hash_next){
+	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID))
+	    return;
+      }
+  } else {
+      /* low-associativity cache, linear search the way list */
+      for (blk=cp->sets[set].way_head; blk; blk=blk->way_next) {
+	  if (blk->tag == tag && (blk->status & CACHE_BLK_VALID))
+	    return;
+      }
+  }
+
+  switch (cp->policy) {
+  case LRU:
+  case FIFO:
+    repl = cp->sets[set].way_tail;
+    update_way_list(&cp->sets[set], repl, Head);
+    break;
+  case Random:
+    {
+      int bindex = myrand() & (cp->assoc - 1);
+      repl = CACHE_BINDEX(cp, cp->sets[set].blks, bindex);
+    }
+    break;
+  default:
+    panic("bogus replacement policy");
+  }
+
+  /* remove this block from the hash bucket chain, if hash exists */
+  if (cp->hsize)
+    unlink_htab_ent(cp, &cp->sets[set], repl);
+
+  /* blow away the last block to hit */
+  cp->last_tagset = 0;
+  cp->last_blk = NULL;
+
+  /* write back replaced block data */
+  if (repl->status & CACHE_BLK_VALID) {
+      cp->replacements++;
+
+      if (repl_addr)
+	*repl_addr = CACHE_MK_BADDR(cp, repl->tag, set);
+ 
+      /* don't replace the block until outstanding misses are satisfied */
+      lat += BOUND_POS(repl->ready - now);
+ 
+      /* stall until the bus to next level of memory is available */
+      lat += BOUND_POS(cp->bus_free - (now + lat));
+ 
+      /* track bus resource usage */
+      cp->bus_free = MAX(cp->bus_free, (now + lat)) + 1;
+
+      if (repl->status & CACHE_BLK_DIRTY)
+	{
+	  /* write back the cache block */
+	  cp->writebacks++;
+	  lat += cp->blk_access_fn(Write,
+				   CACHE_MK_BADDR(cp, repl->tag, set),
+				   cp->bsize, repl, now+lat, 0);
+	}
+  }
+  /* update block tags */
+  repl->tag = tag;
+  repl->status = CACHE_BLK_VALID;	/* dirty bit set on update */
+
+
+}
+
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
+  md_addr_t next_line_addr;
 
-	; 
 }
 
 /* Open Ended Prefetcher */
