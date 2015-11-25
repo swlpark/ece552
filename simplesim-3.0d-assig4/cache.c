@@ -535,7 +535,7 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   case LRU:
   case FIFO:
     repl = cp->sets[set].way_tail;
-    update_way_list(&cp->sets[set], repl, Hea);
+    update_way_list(&cp->sets[set], repl, Head);
     break;
   case Random:
     {
