@@ -149,6 +149,7 @@ struct cache_set_t
 				   access to cache blocks */
 };
 
+
 /* ECE552 Assignment 4 - BEGIN CODE */
 enum P_FSM {INITIAL=0, TRANSIENT=1, STEADY=2, NO_PRED=3};
 
@@ -161,7 +162,6 @@ struct prediction_t
 };
 extern  struct prediction_t * rpt;
 /* ECE552 Assignment 4 - END CODE */
-
 
 /* cache definition */
 struct cache_t

@@ -37,8 +37,7 @@
  * code, or (B) it is accompanied by a written offer, with no time limit, to
  * give anyone a machine-readable copy of the corresponding source code in
  * return for reimbursement of the cost of distribution. This written offer
- * must permit verbatim duplication by anyone, or (C) it is distributed by
- * someone who received only the executable form, and is accompanied by a
+ * must permit verbatim duplication by anyone, or (C) it is distributed by * someone who received only the executable form, and is accompanied by a
  * copy of the written offer of source code.
  * 
  * 6. SimpleScalar was developed by Todd M. Austin, Ph.D. The tool suite is
@@ -50,7 +49,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <iostream>
+#include <vector>
+#include <iterator>
 
 #ifdef __cplusplus
 extern "C" {
@@ -143,7 +143,6 @@ extern "C" {
 
 /* bound sqword_t/dfloat_t to positive int */
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
-md_addr_t get_PC();
 
 /* unlink BLK from the hash table bucket chain in SET */
 static void
@@ -321,16 +320,18 @@ cache_create(char *name,		/* name of the cache */
   cp->hit_latency = hit_latency;
   cp->prefetch_type = prefetch_type;
 
-/* ECE552 Assignment 4 - BEGIN CODE */
-  //RPT init
-  if (rpt == NULL && prefetch_type > 2) {
-    rpt = new prediction_t[prefetch_type];
-    for(i = 0; i < prefetch_type; i=i+1)
-    {
-      rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
+  /* ECE552 Assignment 4 - BEGIN CODE */
+    //RPT init
+    if (rpt == NULL && prefetch_type > 2) {
+      rpt = new prediction_t[prefetch_type];
+      for(i = 0; i < prefetch_type; i=i+1)
+      {
+        rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
+      }
     }
-  }
-/* ECE552 Assignment 4 - END CODE */
+  /* ECE552 Assignment 4 - END CODE */
+
+
 
   /* miss/replacement functions */
   cp->blk_access_fn = blk_access_fn;
@@ -522,6 +523,11 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 
 }
 
+#ifdef __cplusplus
+extern "C"
+#endif
+md_addr_t get_PC();
+
 /* ECE552 Assignment 4 - BEGIN CODE */
 void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   md_addr_t tag = CACHE_TAG(cp, addr);
@@ -598,7 +604,11 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
 
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	; 
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  md_addr_t next_line_addr;
+  next_line_addr = addr + cp->bsize;
+  fetch_cache_blk(cp, next_line_addr);
+  /* ECE552 Assignment 4 - END CODE */
 }
 
 /* Open Ended Prefetcher */
