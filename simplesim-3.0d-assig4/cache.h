@@ -224,6 +224,19 @@ struct cache_t
   struct cache_set_t sets[1];	/* each entry is a set */
 };
 
+/* ECE552 Assignment 4 - BEGIN CODE */
+enum P_FSM {INITIAL=0, TRANSIENT=1, STEADY=2, NO_PRED=3};
+
+struct prediction_t
+{
+   md_addr_t tag;
+   md_addr_t prev_addr;
+   md_addr_t stride;
+   enum P_FSM state;
+};
+extern  struct prediction_t * rpt;
+/* ECE552 Assignment 4 - END CODE */
+
 /* create and initialize a general cache structure */
 struct cache_t *			/* pointer to cache created */
 cache_create(char *name,		/* name of the cache */

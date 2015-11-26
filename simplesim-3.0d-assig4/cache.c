@@ -315,6 +315,17 @@ cache_create(char *name,		/* name of the cache */
   cp->hit_latency = hit_latency;
   cp->prefetch_type = prefetch_type;
 
+/* ECE552 Assignment 4 - BEGIN CODE */
+  //RPT init
+  if (rpt == NULL && prefetch_type > 2) {
+    rpt = (struct prediction_t *)malloc(sizeof(struct prediction_t) * prefetch_type);
+    for(i = 0; i < prefetch_type; i=i+1)
+    {
+      rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
+    }
+  }
+/* ECE552 Assignment 4 - END CODE */
+
   /* miss/replacement functions */
   cp->blk_access_fn = blk_access_fn;
 
@@ -551,10 +562,6 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   if (cp->hsize)
     unlink_htab_ent(cp, &cp->sets[set], repl);
 
-  /* blow away the last block to hit */
-  //cp->last_tagset = 0;
-  //cp->last_blk = NULL;
-
   /* write back replaced block data */
   if (repl->status & CACHE_BLK_VALID) {
       cp->replacements++;
@@ -580,28 +587,96 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
 
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
+  /* ECE552 Assignment 4 - BEGIN CODE */
   md_addr_t next_line_addr;
   next_line_addr = addr + cp->bsize; 
   fetch_cache_blk(cp, next_line_addr);
-
+  /* ECE552 Assignment 4 - END CODE */
 }
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-
-	; 
 }
 
 /* Stride Prefetcher */
+/* ECE552 Assignment 4 - BEGIN CODE */
+struct prediction_t * rpt = NULL;
+
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
+  int i;
+  md_addr_t pc_tag = get_PC() >> cp->set_shift;
+  md_addr_t prefetch_addr = 0;
 
-	; 
+  if (rpt == NULL)
+    fatal("RPT table is NULL\n");
+
+  struct prediction_t * match_entry = NULL;
+  int match = FALSE;
+  for(i=0; i < cp->prefetch_type; i=i+1)
+  {
+     if(rpt[i].tag == pc_tag) {
+        match = TRUE;
+        match_entry = &rpt[i];
+     }
+  }
+  //Random eviction
+  if (!match) {
+    int rpt_idx = myrand() & (cp->prefetch_type - 1);
+    match_entry = &rpt[rpt_idx];        
+  }
+
+  //New entry
+  if (match) {
+    match_entry->tag = pc_tag;
+    match_entry->prev_addr = addr;
+    match_entry->state = INITIAL;
+    match_entry->stride = 0;
+  } else {
+    md_addr_t stride = addr - match_entry->prev_addr;
+    switch(match_entry->state) {
+      case INITIAL:
+        prefetch_addr = addr + match_entry->stride;
+        if(stride == match_entry->stride) {
+          match_entry->state = STEADY;
+        } else {
+          match_entry->state = TRANSIENT;
+          match_entry->stride= stride;
+        }
+        break;
+      case TRANSIENT:
+        prefetch_addr = addr + match_entry->stride;
+        if(stride == match_entry->stride) {
+          match_entry->state = STEADY;
+        } else {
+          match_entry->state = NO_PRED;
+          match_entry->stride= stride;
+        }
+        break;
+      case STEADY:
+        prefetch_addr = addr + match_entry->stride;
+        if(stride != match_entry->stride) {
+          match_entry->state = INITIAL;
+        }
+        break;
+      case NO_PRED:
+        prefetch_addr = addr + match_entry->stride;
+        if(stride == match_entry->stride) {
+          match_entry->state = TRANSIENT;
+        } else {
+          match_entry->stride= stride;
+        }
+        break;
+    }
+  }
+
+  if (!prefetch_addr)
+    fetch_cache_blk(cp, prefetch_addr);
+
 }
-
+/* ECE552 Assignment 4 - END CODE */
 
 /* cache x might generate a prefetch after a regular cache access to address addr */
 void generate_prefetch(struct cache_t *cp, md_addr_t addr) {
-
 	switch(cp->prefetch_type) {
 		case 0:
 		   // prefetching is not enabled;
@@ -622,7 +697,7 @@ void generate_prefetch(struct cache_t *cp, md_addr_t addr) {
 
 }
 
-md_addr_t get_PC();
+//md_addr_t get_PC();
 
 /* print cache stats */
 void
