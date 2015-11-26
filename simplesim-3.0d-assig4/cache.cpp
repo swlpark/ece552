@@ -148,6 +148,10 @@ extern "C" {
 
 /* ECE552 Assignment 4 - BEGIN CODE */
 std::vector<prediction_t> rpt;
+int prefetch_cnt = 0;
+int demand_miss_counter = 0; 
+int polution_miss_counter = 0; 
+
 /* ECE552 Assignment 4 - END CODE */
 
 /* unlink BLK from the hash table bucket chain in SET */
@@ -331,6 +335,7 @@ cache_create(char *name,		/* name of the cache */
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
   }
+
   /* ECE552 Assignment 4 - END CODE */
 
 
@@ -619,12 +624,13 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
   md_addr_t next_line_addr;
   next_line_addr = addr + cp->bsize;
   fetch_cache_blk(cp, next_line_addr);
+
   /* ECE552 Assignment 4 - END CODE */
 }
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	; 
+
 }
 
 /* ECE552 Assignment 4 - BEGIN CODE */
