@@ -625,12 +625,14 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
     match_entry = &rpt[rpt_idx];        
   }
 
+  match_entry->tag = pc_tag;
+
   //New entry
-  if (match) {
-    match_entry->tag = pc_tag;
+  if (!match) {
     match_entry->prev_addr = addr;
     match_entry->state = INITIAL;
     match_entry->stride = 0;
+
   } else {
     md_addr_t stride = addr - match_entry->prev_addr;
     switch(match_entry->state) {
@@ -669,7 +671,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
     }
   }
 
-  if (!prefetch_addr)
+  if (prefetch_addr != 0)
     fetch_cache_blk(cp, prefetch_addr);
 
 }
