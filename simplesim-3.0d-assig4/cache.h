@@ -157,10 +157,10 @@ struct prediction_t
 {
    md_addr_t tag;
    md_addr_t prev_addr;
-   md_addr_t stride;
+   int stride;
    enum P_FSM state;
 };
-extern  struct prediction_t * rpt;
+
 /* ECE552 Assignment 4 - END CODE */
 
 /* cache definition */

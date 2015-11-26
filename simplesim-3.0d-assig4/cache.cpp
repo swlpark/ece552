@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <vector>
+#include <list>
 #include <iterator>
 
 #ifdef __cplusplus
@@ -143,6 +144,10 @@ extern "C" {
 
 /* bound sqword_t/dfloat_t to positive int */
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
+
+/* ECE552 Assignment 4 - BEGIN CODE */
+std::list<prediction_t> rpt;
+/* ECE552 Assignment 4 - END CODE */
 
 /* unlink BLK from the hash table bucket chain in SET */
 static void
@@ -322,13 +327,9 @@ cache_create(char *name,		/* name of the cache */
 
   /* ECE552 Assignment 4 - BEGIN CODE */
     //RPT init
-    if (rpt == NULL && prefetch_type > 2) {
-      rpt = new prediction_t[prefetch_type];
-      for(i = 0; i < prefetch_type; i=i+1)
-      {
-        rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
-      }
-    }
+    //if (rpt.size() == 0) {
+    //  rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
+    //}
   /* ECE552 Assignment 4 - END CODE */
 
 
@@ -581,6 +582,15 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   /* write back replaced block data */
   if (repl->status & CACHE_BLK_VALID) {
       cp->replacements++;
+      if (repl->status & CACHE_BLK_DIRTY)
+      {
+        /* write back the cache block */
+        cp->writebacks++;
+        lat += cp->blk_access_fn(Write,
+      			   CACHE_MK_BADDR(cp, repl->tag, set),
+      			   cp->bsize, repl, 0, 0);
+      }
+
   }
 
   /* update block tags */
@@ -617,7 +627,6 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 }
 
 /* ECE552 Assignment 4 - BEGIN CODE */
-struct prediction_t * rpt = NULL;
 
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
@@ -625,38 +634,49 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   md_addr_t pc_tag = get_PC() >> cp->set_shift;
   md_addr_t prefetch_addr = 0;
 
-  if (rpt == NULL)
-    fatal("RPT table is NULL\n");
+  if (rpt.size() > cp->prefetch_type)
+    fatal("RPT table went over the size limit \n");
 
-  struct prediction_t * match_entry = NULL;
-  int match = FALSE;
-  for(i=0; i < cp->prefetch_type; i=i+1)
+  prediction_t * match_entry = NULL;
+  bool match = false;
+  for(std::list<prediction_t>::iterator it = rpt.begin(); it != rpt.end(); ++it)
   {
-     if(rpt[i].tag == pc_tag) {
-        match = TRUE;
-        match_entry = &rpt[i];
+     if(it->tag == pc_tag) {
+        match = true;
+        match_entry = &(*it);
      }
   }
-  //Random eviction
+  //no matching PC tag; assign a new entry
   if (!match) {
-    int rpt_idx = myrand() & (cp->prefetch_type - 1);
-    match_entry = &rpt[rpt_idx];        
-  }
-
-  match_entry->tag = pc_tag;
-
-  //New entry
-  if (!match) {
-    match_entry->prev_addr = addr;
-    match_entry->state = INITIAL;
-    match_entry->stride = 0;
-
+    if (rpt.size() < cp->prefetch_type) {
+      prediction_t n_entry;
+      n_entry.tag = pc_tag;
+      n_entry.state = INITIAL;
+      n_entry.prev_addr = addr;
+      n_entry.stride = 0;
+      rpt.push_front(n_entry);
+    } else { //evict the most recent entry that is not steady
+      for(std::list<prediction_t>::iterator it = rpt.begin(); it != rpt.end(); ++it)
+      {
+          if(it->state != STEADY) {
+             match_entry = &(*it);
+             break;
+          }
+      }
+      if(match_entry == NULL)
+         match_entry = &(*rpt.begin());
+      
+      match_entry->tag = pc_tag;
+      match_entry->state = INITIAL;
+      match_entry->prev_addr = addr;
+      match_entry->stride = 0;
+    }
   } else {
-    md_addr_t stride = addr - match_entry->prev_addr;
+    int stride = (int)addr - (int)match_entry->prev_addr;
     switch(match_entry->state) {
       case INITIAL:
-        prefetch_addr = addr + match_entry->stride;
         if(stride == match_entry->stride) {
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
           match_entry->state = STEADY;
         } else {
           match_entry->state = TRANSIENT;
@@ -664,22 +684,22 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
         }
         break;
       case TRANSIENT:
-        prefetch_addr = addr + match_entry->stride;
         if(stride == match_entry->stride) {
           match_entry->state = STEADY;
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
         } else {
           match_entry->state = NO_PRED;
           match_entry->stride= stride;
         }
         break;
       case STEADY:
-        prefetch_addr = addr + match_entry->stride;
         if(stride != match_entry->stride) {
           match_entry->state = INITIAL;
+        } else {
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
         }
         break;
       case NO_PRED:
-        prefetch_addr = addr + match_entry->stride;
         if(stride == match_entry->stride) {
           match_entry->state = TRANSIENT;
         } else {
@@ -687,8 +707,8 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
         }
         break;
     }
+    match_entry->prev_addr = addr; 
   }
-
   if (prefetch_addr != 0)
     fetch_cache_blk(cp, prefetch_addr);
 
