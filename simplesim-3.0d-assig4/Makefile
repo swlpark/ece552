@@ -78,9 +78,11 @@
 ##	Windows NT version 4.0, Cygnus CygWin/32 beta 19
 ##
 CC = gcc
+CXX = g++
+CXXFLAGS = -O0 -g -Wall -fpermissive
 OFLAGS = -O0 -g -Wall
 MFLAGS = `./sysprobe -flags`
-MLIBS  = `./sysprobe -libs` -lm
+MLIBS  = `./sysprobe -libs` -lm -lstdc++
 ENDIAN = `./sysprobe -s`
 MAKE = make
 AR = ar qcv
@@ -279,7 +281,7 @@ CFLAGS = $(MFLAGS) $(FFLAGS) $(OFLAGS) $(BINUTILS_INC) $(BINUTILS_LIB)
 #
 SRCS =	main.c sim-fast.c sim-safe.c sim-cache.c sim-profile.c \
 	sim-eio.c sim-bpred.c sim-cheetah.c sim-outorder.c \
-	memory.c regs.c cache.c bpred.c ptrace.c eventq.c \
+	memory.c regs.c cache.cpp bpred.c ptrace.c eventq.c \
 	resource.c endian.c dlite.c symbol.c eval.c options.c range.c \
 	eio.c stats.c endian.c misc.c \
 	target-pisa/pisa.c target-pisa/loader.c target-pisa/syscall.c \
@@ -403,6 +405,9 @@ cheetah libcheetah/libcheetah.$(LEXT): sysprobe$(EEXT)
 
 .c.$(OEXT):
 	$(CC) $(CFLAGS) -c $*.c
+
+.cpp.$(OEXT):
+	$(CXX) $(CXXFLAGS) -c $*.cpp
 
 filelist:
 	@echo $(SRCS) $(HDRS) Makefile

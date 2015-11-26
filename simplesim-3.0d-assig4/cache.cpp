@@ -47,16 +47,21 @@
  * 
  * Copyright (C) 1994-2003 by Todd M. Austin, Ph.D. and SimpleScalar, LLC.
  */
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <iostream>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "host.h"
 #include "misc.h"
 #include "machine.h"
 #include "cache.h"
+#ifdef __cplusplus
+}
+#endif
 
 /* cache access macros */
 #define CACHE_TAG(cp, addr)	((addr) >> (cp)->tag_shift)
@@ -66,7 +71,7 @@
 
 /* extract/reconstruct a block address */
 #define CACHE_BADDR(cp, addr)	((addr) & ~(cp)->blk_mask)
-#define CACHE_MK_BADDR(cp,  tag, set)					\
+#define CACHE_MK_BADDR(cp, tag, set)					\
   (((tag) << (cp)->tag_shift)|((set) << (cp)->set_shift))
 
 /* index an array of cache blocks, non-trivial due to variable length blocks */
@@ -138,6 +143,7 @@
 
 /* bound sqword_t/dfloat_t to positive int */
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
+md_addr_t get_PC();
 
 /* unlink BLK from the hash table bucket chain in SET */
 static void
@@ -318,7 +324,7 @@ cache_create(char *name,		/* name of the cache */
 /* ECE552 Assignment 4 - BEGIN CODE */
   //RPT init
   if (rpt == NULL && prefetch_type > 2) {
-    rpt = (struct prediction_t *)malloc(sizeof(struct prediction_t) * prefetch_type);
+    rpt = new prediction_t[prefetch_type];
     for(i = 0; i < prefetch_type; i=i+1)
     {
       rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
@@ -562,6 +568,10 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   if (cp->hsize)
     unlink_htab_ent(cp, &cp->sets[set], repl);
 
+  /* blow away the last block to hit */
+  //cp->last_tagset = 0;
+  //cp->last_blk = NULL;
+
   /* write back replaced block data */
   if (repl->status & CACHE_BLK_VALID) {
       cp->replacements++;
@@ -585,23 +595,21 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
 }
 /* ECE552 Assignment 4 - END CODE */
 
+
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
-  /* ECE552 Assignment 4 - BEGIN CODE */
-  md_addr_t next_line_addr;
-  next_line_addr = addr + cp->bsize; 
-  fetch_cache_blk(cp, next_line_addr);
-  /* ECE552 Assignment 4 - END CODE */
+	; 
 }
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
+	; 
 }
 
-/* Stride Prefetcher */
 /* ECE552 Assignment 4 - BEGIN CODE */
 struct prediction_t * rpt = NULL;
 
+/* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int i;
   md_addr_t pc_tag = get_PC() >> cp->set_shift;
@@ -679,6 +687,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* cache x might generate a prefetch after a regular cache access to address addr */
 void generate_prefetch(struct cache_t *cp, md_addr_t addr) {
+
 	switch(cp->prefetch_type) {
 		case 0:
 		   // prefetching is not enabled;
@@ -699,7 +708,6 @@ void generate_prefetch(struct cache_t *cp, md_addr_t addr) {
 
 }
 
-//md_addr_t get_PC();
 
 /* print cache stats */
 void

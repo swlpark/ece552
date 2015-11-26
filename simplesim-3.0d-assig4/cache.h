@@ -52,8 +52,11 @@
 #ifndef CACHE_H
 #define CACHE_H
 
-#include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#include <stdio.h>
 #include "host.h"
 #include "misc.h"
 #include "machine.h"
@@ -146,6 +149,20 @@ struct cache_set_t
 				   access to cache blocks */
 };
 
+/* ECE552 Assignment 4 - BEGIN CODE */
+enum P_FSM {INITIAL=0, TRANSIENT=1, STEADY=2, NO_PRED=3};
+
+struct prediction_t
+{
+   md_addr_t tag;
+   md_addr_t prev_addr;
+   md_addr_t stride;
+   enum P_FSM state;
+};
+extern  struct prediction_t * rpt;
+/* ECE552 Assignment 4 - END CODE */
+
+
 /* cache definition */
 struct cache_t
 {
@@ -224,19 +241,9 @@ struct cache_t
   struct cache_set_t sets[1];	/* each entry is a set */
 };
 
-/* ECE552 Assignment 4 - BEGIN CODE */
-enum P_FSM {INITIAL=0, TRANSIENT=1, STEADY=2, NO_PRED=3};
-
-struct prediction_t
-{
-   md_addr_t tag;
-   md_addr_t prev_addr;
-   md_addr_t stride;
-   enum P_FSM state;
-};
-extern  struct prediction_t * rpt;
-/* ECE552 Assignment 4 - END CODE */
-
+#ifdef __cplusplus
+extern "C"
+#endif
 /* create and initialize a general cache structure */
 struct cache_t *			/* pointer to cache created */
 cache_create(char *name,		/* name of the cache */
@@ -280,9 +287,6 @@ void cache_stats(struct cache_t *cp, FILE *stream);
    call the appropriate function to generate the prefetch (e.g., next_line_prefetcher) */
 
 void generate_prefetch(struct cache_t *cp, md_addr_t addr);
-
-/* Next Line Prefetcher */
-void fetch_cache_blk(struct cache_t *cp, md_addr_t addr);
 
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr);
@@ -342,5 +346,7 @@ unsigned int				/* latency of flush operation */
 cache_flush_addr(struct cache_t *cp,	/* cache instance to flush */
 		 md_addr_t addr,	/* address of block to flush */
 		 tick_t now);		/* time of cache flush */
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* CACHE_H */

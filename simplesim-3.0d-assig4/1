@@ -1,0 +1,489 @@
+g++ -O0 -g -Wall -fpermissive -c cache.cpp
+In file included from cache.cpp:58:0:
+cache.cpp: In function 'void update_way_list(cache_set_t*, cache_blk_t*, list_loc_t)':
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:260:5: note: in expansion of macro 'panic'
+     panic("bogus WHERE designator");
+     ^
+misc.h:116:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:260:5: note: in expansion of macro 'panic'
+     panic("bogus WHERE designator");
+     ^
+misc.h:119:1: note: initializing argument 2 of 'void _panic(char*, char*, int, char*, ...)'
+ _panic(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:260:5: note: in expansion of macro 'panic'
+     panic("bogus WHERE designator");
+     ^
+cache.cpp: In function 'cache_t* cache_create(char*, int, int, int, int, int, cache_policy, unsigned int (*)(mem_cmd, md_addr_t, int, cache_blk_t*, tick_t, int), unsigned int, int)':
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:286:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' must be non-zero", nsets);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:286:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' must be non-zero", nsets);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:286:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' must be non-zero", nsets);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:288:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' is not a power of two", nsets);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:288:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' is not a power of two", nsets);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:288:5: note: in expansion of macro 'fatal'
+     fatal("cache size (in sets) `%d' is not a power of two", nsets);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:291:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be 8 or greater", bsize);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:291:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be 8 or greater", bsize);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:291:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be 8 or greater", bsize);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:293:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be a power of two", bsize);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:293:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be a power of two", bsize);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:293:5: note: in expansion of macro 'fatal'
+     fatal("cache block size (in bytes) `%d' must be a power of two", bsize);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:295:5: note: in expansion of macro 'fatal'
+     fatal("user data size (in bytes) `%d' must be a positive value", usize);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:295:5: note: in expansion of macro 'fatal'
+     fatal("user data size (in bytes) `%d' must be a positive value", usize);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:295:5: note: in expansion of macro 'fatal'
+     fatal("user data size (in bytes) `%d' must be a positive value", usize);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:297:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be non-zero and positive", assoc);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:297:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be non-zero and positive", assoc);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:297:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be non-zero and positive", assoc);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:299:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be a power of two", assoc);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:299:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be a power of two", assoc);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:299:5: note: in expansion of macro 'fatal'
+     fatal("cache associativity `%d' must be a power of two", assoc);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:301:5: note: in expansion of macro 'fatal'
+     fatal("must specify miss/replacement functions");
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:301:5: note: in expansion of macro 'fatal'
+     fatal("must specify miss/replacement functions");
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:301:5: note: in expansion of macro 'fatal'
+     fatal("must specify miss/replacement functions");
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:303:5: note: in expansion of macro 'fatal'
+     fatal("prefetcher type `%d'must be a positive number", prefetch_type);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:303:5: note: in expansion of macro 'fatal'
+     fatal("prefetcher type `%d'must be a positive number", prefetch_type);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:303:5: note: in expansion of macro 'fatal'
+     fatal("prefetcher type `%d'must be a positive number", prefetch_type);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:309:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:309:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:309:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+cache.cpp:328:51: warning: invalid conversion from 'int' to 'P_FSM' [-fpermissive]
+       rpt[i] = (struct prediction_t) { 0, 0, 0, 0 };
+                                                   ^
+In file included from cache.cpp:58:0:
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:375:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:375:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:375:5: note: in expansion of macro 'fatal'
+     fatal("out of virtual memory");
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:390:6: note: in expansion of macro 'fatal'
+      fatal("out of virtual memory");
+      ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:390:6: note: in expansion of macro 'fatal'
+      fatal("out of virtual memory");
+      ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:390:6: note: in expansion of macro 'fatal'
+      fatal("out of virtual memory");
+      ^
+cache.cpp: In function 'cache_policy cache_char2policy(char)':
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:437:12: note: in expansion of macro 'fatal'
+   default: fatal("bogus replacement policy, `%c'", c);
+            ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:437:12: note: in expansion of macro 'fatal'
+   default: fatal("bogus replacement policy, `%c'", c);
+            ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:437:12: note: in expansion of macro 'fatal'
+   default: fatal("bogus replacement policy, `%c'", c);
+            ^
+cache.cpp: In function 'void cache_reg_stats(cache_t*, stat_sdb_t*)':
+cache.cpp:468:10: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+     name = "<unknown>";
+          ^
+cache.cpp:474:72: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "total number of accesses", buf1, "%12.0f");
+                                                                        ^
+cache.cpp:474:72: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+cache.cpp:476:72: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of hits", &cp->hits, 0, NULL);
+                                                                        ^
+cache.cpp:478:76: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of misses", &cp->misses, 0, NULL);
+                                                                            ^
+cache.cpp:481:30: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+    &cp->replacements, 0, NULL);
+                              ^
+cache.cpp:484:28: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+    &cp->writebacks, 0, NULL);
+                            ^
+cache.cpp:487:31: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+    &cp->invalidations, 0, NULL);
+                               ^
+cache.cpp:490:72: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "miss rate (i.e., misses/ref)", buf1, NULL);
+                                                                        ^
+cache.cpp:493:78: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "replacement rate (i.e., repls/ref)", buf1, NULL);
+                                                                              ^
+cache.cpp:496:76: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "writeback rate (i.e., wrbks/ref)", buf1, NULL);
+                                                                            ^
+cache.cpp:499:78: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "invalidation rate (i.e., invs/ref)", buf1, NULL);
+                                                                              ^
+cache.cpp:503:77: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "total number of read accesses", buf1, "%12.0f");
+                                                                             ^
+cache.cpp:503:77: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+cache.cpp:505:82: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of read hits", &cp->read_hits, 0, NULL);
+                                                                                  ^
+cache.cpp:507:86: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of read misses", &cp->read_misses, 0, NULL);
+                                                                                      ^
+cache.cpp:510:58: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "read miss rate", buf1, NULL);
+                                                          ^
+cache.cpp:514:81: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_formula(sdb, buf, "total number of prefetch accesses", buf1, "%12.0f");
+                                                                                 ^
+cache.cpp:514:81: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+cache.cpp:516:90: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of prefetch hits", &cp->prefetch_hits, 0, NULL);
+                                                                                          ^
+cache.cpp:518:94: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   stat_reg_counter(sdb, buf, "total number of prefetch misses", &cp->prefetch_misses, 0, NULL);
+                                                                                              ^
+In file included from cache.cpp:58:0:
+cache.cpp: In function 'void fetch_cache_blk(cache_t*, md_addr_t)':
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:562:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+misc.h:116:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:562:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+misc.h:119:1: note: initializing argument 2 of 'void _panic(char*, char*, int, char*, ...)'
+ _panic(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:562:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+cache.cpp:584:20: warning: converting to non-pointer type 'tick_t {aka long long int}' from NULL [-Wconversion-null]
+       repl, NULL, 0);
+                    ^
+cache.cpp:587:15: warning: converting to non-pointer type 'tick_t {aka long long int}' from NULL [-Wconversion-null]
+   repl->ready = NULL;
+               ^
+cache.cpp:527:13: warning: unused variable 'bofs' [-Wunused-variable]
+   md_addr_t bofs = CACHE_BLK(cp, addr);
+             ^
+cache.cpp: In function 'void stride_prefetcher(cache_t*, md_addr_t)':
+cache.cpp:613:29: error: 'get_PC' was not declared in this scope
+   md_addr_t pc_tag = get_PC() >> cp->set_shift;
+                             ^
+In file included from cache.cpp:58:0:
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:617:5: note: in expansion of macro 'fatal'
+     fatal("RPT table is NULL\n");
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:617:5: note: in expansion of macro 'fatal'
+     fatal("RPT table is NULL\n");
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:617:5: note: in expansion of macro 'fatal'
+     fatal("RPT table is NULL\n");
+     ^
+cache.cpp: In function 'unsigned int cache_access(cache_t*, mem_cmd, md_addr_t, void*, int, tick_t, byte_t**, md_addr_t*, int)':
+cache.cpp:745:15: warning: invalid conversion from 'void*' to 'byte_t* {aka unsigned char*}' [-fpermissive]
+   byte_t *p = vp;
+               ^
+In file included from cache.cpp:58:0:
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:758:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: bad size or alignment, addr 0x%08x", addr);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:758:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: bad size or alignment, addr 0x%08x", addr);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:758:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: bad size or alignment, addr 0x%08x", addr);
+     ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:764:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: access spans block, addr 0x%08x", addr);
+     ^
+misc.h:103:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:764:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: access spans block, addr 0x%08x", addr);
+     ^
+misc.h:106:1: note: initializing argument 2 of 'void _fatal(char*, char*, int, char*, ...)'
+ _fatal(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:103:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _fatal(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:764:5: note: in expansion of macro 'fatal'
+     fatal("cache: access error: access spans block, addr 0x%08x", addr);
+     ^
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:832:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+misc.h:116:56: warning: invalid conversion from 'const char*' to 'char*' [-fpermissive]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:832:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+misc.h:119:1: note: initializing argument 2 of 'void _panic(char*, char*, int, char*, ...)'
+ _panic(char *file, char *func, int line, char *fmt, ...)
+ ^
+misc.h:116:56: warning: deprecated conversion from string constant to 'char*' [-Wwrite-strings]
+   _panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## args)
+                                                        ^
+cache.cpp:832:5: note: in expansion of macro 'panic'
+     panic("bogus replacement policy");
+     ^
+Makefile:410: recipe for target 'cache.o' failed
+make: *** [cache.o] Error 1
