@@ -52,6 +52,7 @@
 #include <vector>
 #include <list>
 #include <iterator>
+#include <math.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -146,7 +147,7 @@ extern "C" {
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
 
 /* ECE552 Assignment 4 - BEGIN CODE */
-std::list<prediction_t> rpt;
+std::vector<prediction_t> rpt;
 /* ECE552 Assignment 4 - END CODE */
 
 /* unlink BLK from the hash table bucket chain in SET */
@@ -327,9 +328,9 @@ cache_create(char *name,		/* name of the cache */
 
   /* ECE552 Assignment 4 - BEGIN CODE */
     //RPT init
-    //if (rpt.size() == 0) {
-    //  rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
-    //}
+  if (rpt.size() == 0) {
+    rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
+  }
   /* ECE552 Assignment 4 - END CODE */
 
 
@@ -631,46 +632,36 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int i;
-  md_addr_t pc_tag = get_PC() >> cp->set_shift;
+  md_addr_t pc_tag = get_PC();
+  assert((7 & pc_tag) == 0);
+  pc_tag = get_PC() >> 3;
   md_addr_t prefetch_addr = 0;
+
+  int rpt_set_shift = log2(cp->prefetch_type);
+  int rpt_idx = pc_tag & ((1 << rpt_set_shift) - 1);
 
   if (rpt.size() > cp->prefetch_type)
     fatal("RPT table went over the size limit \n");
+  if (rpt_idx > cp->prefetch_type)
+    fatal("RPT index went over the size limit \n");
+  
 
   prediction_t * match_entry = NULL;
   bool match = false;
-  for(std::list<prediction_t>::iterator it = rpt.begin(); it != rpt.end(); ++it)
+  if(rpt[rpt_idx].tag == pc_tag)
   {
-     if(it->tag == pc_tag) {
-        match = true;
-        match_entry = &(*it);
-     }
+     match = true;
+     match_entry = &rpt[rpt_idx];
   }
+
   //no matching PC tag; assign a new entry
   if (!match) {
-    if (rpt.size() < cp->prefetch_type) {
-      prediction_t n_entry;
-      n_entry.tag = pc_tag;
-      n_entry.state = INITIAL;
-      n_entry.prev_addr = addr;
-      n_entry.stride = 0;
-      rpt.push_front(n_entry);
-    } else { //evict the most recent entry that is not steady
-      for(std::list<prediction_t>::iterator it = rpt.begin(); it != rpt.end(); ++it)
-      {
-          if(it->state != STEADY) {
-             match_entry = &(*it);
-             break;
-          }
-      }
-      if(match_entry == NULL)
-         match_entry = &(*rpt.begin());
-      
-      match_entry->tag = pc_tag;
-      match_entry->state = INITIAL;
-      match_entry->prev_addr = addr;
-      match_entry->stride = 0;
-    }
+    prediction_t n_entry;
+    n_entry.tag = pc_tag;
+    n_entry.state = INITIAL;
+    n_entry.prev_addr = addr;
+    n_entry.stride = 0;
+    rpt[rpt_idx] = n_entry;
   } else {
     int stride = (int)addr - (int)match_entry->prev_addr;
     switch(match_entry->state) {
