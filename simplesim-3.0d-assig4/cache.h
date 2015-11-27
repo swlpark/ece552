@@ -134,6 +134,11 @@ struct cache_blk_t
      defined in this structure! */
   byte_t data[1];		/* actual data block starts here, block size
 				   should probably be a multiple of 8 */
+
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  char prefetched;
+  char prefetch_used;
+  /* ECE552 Assignment 4 - END CODE */
 };
 
 /* cache set definition (one or more blocks sharing the same set index) */
@@ -224,9 +229,12 @@ struct cache_t
   counter_t read_hits;		/* total number of read accesses that are hits */
   counter_t read_misses;	/* total number of read accesses that are misses */
 
-  counter_t prefetch_hits;	/* total number of prefetch accesses that are hits */ 
-  counter_t prefetch_misses;	/* total number of prefetch accesses that miss in this cache */
-
+/* ECE552 Assignment 4 - BEGIN CODE */
+  counter_t prefetch_cnt;
+  counter_t prefetch_useful_cnt;
+  counter_t prefetch_misses;
+  counter_t prefetch_aggr;
+/* ECE552 Assignment 4 - END CODE */
 
 
   /* last block to hit, used to optimize cache hit processing */

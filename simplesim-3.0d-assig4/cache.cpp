@@ -53,6 +53,8 @@
 #include <list>
 #include <iterator>
 #include <math.h>
+#include <string>
+#include <algorithm>
 
 #ifdef __cplusplus
 extern "C" {
@@ -147,7 +149,14 @@ extern "C" {
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
 
 /* ECE552 Assignment 4 - BEGIN CODE */
+struct evicted_tag {
+  bool prefetched;
+  md_addr_t tag;
+};
+
 std::vector<prediction_t> rpt;
+std::vector< std::list<evicted_tag> > evicted_blks;
+
 /* ECE552 Assignment 4 - END CODE */
 
 /* unlink BLK from the hash table bucket chain in SET */
@@ -327,12 +336,12 @@ cache_create(char *name,		/* name of the cache */
   cp->prefetch_type = prefetch_type;
 
   /* ECE552 Assignment 4 - BEGIN CODE */
-    //RPT init
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
   }
+  if (strcmp(cp->name, "dl1") == 0)
+     evicted_blks.resize(nsets, std::list<evicted_tag>());
   /* ECE552 Assignment 4 - END CODE */
-
 
 
   /* miss/replacement functions */
@@ -365,8 +374,14 @@ cache_create(char *name,		/* name of the cache */
 
   cp->read_hits = 0;
   cp->read_misses = 0;
-  cp->prefetch_hits = 0;
+
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  cp->prefetch_cnt = 0;
+  cp->prefetch_useful_cnt = 0;
   cp->prefetch_misses = 0;
+
+  cp->prefetch_aggr = 1;
+  /* ECE552 Assignment 4 - END CODE */
 
   /* blow away the last block accessed */
   cp->last_tagset = 0;
@@ -413,6 +428,11 @@ cache_create(char *name,		/* name of the cache */
 	  blk->ready = 0;
 	  blk->user_data = (usize != 0
 			    ? (byte_t *)calloc(usize, sizeof(byte_t)) : NULL);
+
+          /* ECE552 Assignment 4 - BEGIN CODE */
+	  blk->prefetched = 0;
+	  blk->prefetch_used = 0;
+          /* ECE552 Assignment 4 - END CODE */
 
 	  /* insert cache block into set hash table */
 	  if (cp->hsize)
@@ -514,14 +534,17 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
   sprintf(buf1, "%s.read_misses / %s.read_accesses", name, name);
   stat_reg_formula(sdb, buf, "read miss rate", buf1, NULL);
   
-  sprintf(buf, "%s.prefetch_accesses", name);
-  sprintf(buf1, "%s.prefetch_hits +  %s.prefetch_misses", name, name);
-  stat_reg_formula(sdb, buf, "total number of prefetch accesses", buf1, "%12.0f");
-  sprintf(buf, "%s.prefetch_hits", name);
-  stat_reg_counter(sdb, buf, "total number of prefetch hits", &cp->prefetch_hits, 0, NULL);
+/* ECE552 Assignment 4 - BEGIN CODE */
+  sprintf(buf, "%s.prefetch_accuracy", name);
+  sprintf(buf1, "%s.prefetch_useful_cnt / %s.prefetch_cnt", name, name);
+  stat_reg_formula(sdb, buf, "accuracy of prefetch accesses", buf1, "%12.0f");
+  sprintf(buf, "%s.prefetch_cnt", name);
+  stat_reg_counter(sdb, buf, "total number of prefetches", &cp->prefetch_cnt, 0, NULL);
+  sprintf(buf, "%s.prefetch_useful_cnt", name);
+  stat_reg_counter(sdb, buf, "total number of useful prefetches", &cp->prefetch_useful_cnt, 0, NULL);
   sprintf(buf, "%s.prefetch_misses", name);
-  stat_reg_counter(sdb, buf, "total number of prefetch misses", &cp->prefetch_misses, 0, NULL);
-
+  stat_reg_counter(sdb, buf, "total number of misses caused by prefetch evictions", &cp->prefetch_misses, 0, NULL);
+/* ECE552 Assignment 4 - END CODE */
 
 }
 
@@ -576,9 +599,13 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   if (cp->hsize)
     unlink_htab_ent(cp, &cp->sets[set], repl);
 
-  /* blow away the last block to hit */
-  //cp->last_tagset = 0;
-  //cp->last_blk = NULL;
+  /* evicted cache_blk */
+  if (evicted_blks[set].size() < cp->assoc) {
+     evicted_blks[set].push_front({true, repl->tag});
+  } else {
+     evicted_blks[set].pop_back();
+     evicted_blks[set].push_front({true, repl->tag});
+  }
 
   /* write back replaced block data */
   if (repl->status & CACHE_BLK_VALID) {
@@ -591,14 +618,15 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
       			   CACHE_MK_BADDR(cp, repl->tag, set),
       			   cp->bsize, repl, 0, 0);
       }
-
   }
-
   /* update block tags */
   repl->tag = tag;
   repl->status = CACHE_BLK_VALID;	/* dirty bit set on update */
+  repl->prefetched = 1;
+  repl->prefetch_used = 0;
 
   /* read data block */
+  cp->prefetch_cnt += 1;
   lat += cp->blk_access_fn(Read, CACHE_BADDR(cp, addr), cp->bsize,
 			   repl, NULL, 0);
 
@@ -624,7 +652,194 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	; 
+  float accuracy = (float)cp->prefetch_useful_cnt / (float)cp->prefetch_cnt;
+  float polution = (float)cp->prefetch_misses / (float)cp->misses;
+
+  //High-accuracy 
+  if(accuracy > 0.75)
+  {
+    //low polution
+    if (polution < 0.25) {
+      if(cp->prefetch_aggr < 5) {
+         cp->prefetch_aggr += 1;
+      }
+    } else {
+      if(cp->prefetch_aggr > 0) {
+         cp->prefetch_aggr -= 1;
+      }
+    }
+  }
+  //Medium-accuracy
+  else if (accuracy > 0.4) 
+  {
+    //poluting
+    if (polution >= 0.25) {
+      if(cp->prefetch_aggr > 0) {
+         cp->prefetch_aggr -= 1;
+      }
+    } 
+  }
+  //Low-accuracy
+  else {
+    //poluting
+    if (polution >= 0.25) {
+      if(cp->prefetch_aggr > 0) {
+         cp->prefetch_aggr -= 1;
+      }
+    } 
+  }
+
+  md_addr_t pc_tag = get_PC();
+  assert((7 & pc_tag) == 0);
+  pc_tag = get_PC() >> 3;
+  md_addr_t prefetch_addr = 0;
+
+  int rpt_set_shift = log2(cp->prefetch_type);
+  int rpt_idx = pc_tag & ((1 << rpt_set_shift) - 1);
+
+  if (rpt.size() > cp->prefetch_type)
+    fatal("RPT table went over the size limit \n");
+  if (rpt_idx > cp->prefetch_type)
+    fatal("RPT index went over the size limit \n");
+  
+
+  prediction_t * match_entry = NULL;
+  bool match = false;
+  if(rpt[rpt_idx].tag == pc_tag)
+  {
+     match = true;
+     match_entry = &rpt[rpt_idx];
+  }
+
+  //no matching PC tag; assign a new entry
+  if (!match) {
+    prediction_t n_entry;
+    n_entry.tag = pc_tag;
+    n_entry.state = INITIAL;
+    n_entry.prev_addr = addr;
+    n_entry.stride = 0;
+    rpt[rpt_idx] = n_entry;
+  } else {
+    int stride = (int)addr - (int)match_entry->prev_addr;
+    switch(match_entry->state) {
+      case INITIAL:
+        if(stride == match_entry->stride) {
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
+          match_entry->state = STEADY;
+        } else {
+          match_entry->state = TRANSIENT;
+          match_entry->stride= stride;
+        }
+        break;
+      case TRANSIENT:
+        if(stride == match_entry->stride) {
+          match_entry->state = STEADY;
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
+        } else {
+          match_entry->state = NO_PRED;
+          match_entry->stride= stride;
+        }
+        break;
+      case STEADY:
+        if(stride != match_entry->stride) {
+          match_entry->state = INITIAL;
+        } else {
+          prefetch_addr = (md_addr_t)((int)addr + (int)match_entry->stride);
+        }
+        break;
+      case NO_PRED:
+        if(stride == match_entry->stride) {
+          match_entry->state = TRANSIENT;
+        } else {
+          match_entry->stride= stride;
+        }
+        break;
+    }
+    match_entry->prev_addr = addr; 
+  }
+
+  if (prefetch_addr != 0) {
+     switch(cp->prefetch_aggr) {
+      case 0:
+        fetch_cache_blk(cp, prefetch_addr);
+        break;
+      case 1:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 2) );
+        fetch_cache_blk(cp, prefetch_addr);
+        break;
+      case 2:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 3) );
+        fetch_cache_blk(cp, prefetch_addr);
+        break;
+      case 3:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 4) );
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        break;
+      case 4:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 5) );
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        break;
+      case 5:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 6) );
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
+          prefetch_addr += match_entry->stride;
+        } else {
+          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
+        }
+        fetch_cache_blk(cp, prefetch_addr);
+
+        break;
+       default:
+        fatal("Unsupported Prefetching aggressiveness\n");
+        break;
+    }
+  }
 }
 
 /* ECE552 Assignment 4 - BEGIN CODE */
@@ -831,9 +1046,23 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	cp->read_misses++;
      }
   }
-  else {
-     cp->prefetch_misses++;
+
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  if (strcmp(cp->name, "dl1") == 0) {
+    for(std::list<evicted_tag>::iterator it = evicted_blks[set].begin(); it != evicted_blks[set].end(); ++it)
+    {
+       if(it->tag == tag && it->prefetched) {
+         //move element to the front of the list
+         if(it != evicted_blks[set].begin()) {
+           std::list<evicted_tag>::iterator tmp = it; 
+           evicted_blks[set].splice(evicted_blks[set].begin(), evicted_blks[set], tmp, ++it);
+         }
+         cp->prefetch_misses++;
+         break;
+       }
+    }
   }
+  /* ECE552 Assignment 4 - END CODE */
 
 
   /* select the appropriate block to replace, and re-link this entry to
@@ -889,6 +1118,20 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	}
     }
 
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  /* evicted cache_blk */
+
+  if (strcmp(cp->name, "dl1") == 0) {
+    if (evicted_blks[set].size() < cp->assoc) {
+       evicted_blks[set].push_front({false, repl->tag});
+    } else {
+       evicted_blks[set].pop_back();
+       evicted_blks[set].push_front({false, repl->tag});
+    }
+  }
+  /* ECE552 Assignment 4 - END CODE */
+
+
   /* update block tags */
   repl->tag = tag;
   repl->status = CACHE_BLK_VALID;	/* dirty bit set on update */
@@ -937,9 +1180,14 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   cp->read_hits++;
      }
   }
-  else {
-     cp->prefetch_hits++;
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  if (blk->prefetched){
+    if(blk->prefetch_used == 0) {
+       blk->prefetch_used = 1;
+       cp->prefetch_useful_cnt++;
+    }
   }
+  /* ECE552 Assignment 4 - END CODE */
 
 
   /* copy data out of cache block, if block exists */
@@ -988,9 +1236,14 @@ cache_access(struct cache_t *cp,	/* cache to access */
         cp->read_hits++;
      }
   }
-  else {
-     cp->prefetch_hits++;
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  if (blk->prefetched){
+    if(blk->prefetch_used == 0) {
+       blk->prefetch_used = 1;
+       cp->prefetch_useful_cnt++;
+    }
   }
+  /* ECE552 Assignment 4 - END CODE */
 
 
   /* copy data out of cache block, if block exists */
