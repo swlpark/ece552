@@ -155,8 +155,10 @@ struct evicted_tag {
 };
 
 std::vector<prediction_t> rpt;
-std::vector<prediction_t> b_table;
+std::vector<prediction_t> p_table;
 std::vector< std::list<evicted_tag> > evicted_blks;
+
+void multi_blk_fetch(cache_t *, md_addr_t);
 
 /* ECE552 Assignment 4 - END CODE */
 
@@ -339,10 +341,11 @@ cache_create(char *name,		/* name of the cache */
   /* ECE552 Assignment 4 - BEGIN CODE */
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
-    b_table.resize(32, (prediction_t) { 0, 0, 0, 0 });
   }
-  if (strcmp(cp->name, "dl1") == 0)
+  if (strcmp(cp->name, "dl1") == 0) {
      evicted_blks.resize(nsets, std::list<evicted_tag>());
+     p_table.resize(nsets, (prediction_t) { 0, 0, 0, 0 });
+  }
   /* ECE552 Assignment 4 - END CODE */
 
 
@@ -654,8 +657,9 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-  float accuracy = (float)cp->prefetch_useful_cnt / (float)cp->prefetch_cnt;
-  float polution = (float)cp->prefetch_misses / (float)cp->misses;
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  float accuracy = (float)cp->prefetch_useful_cnt / (float) cp->prefetch_cnt;
+  float polution = (float)cp->prefetch_misses / (float) cp->misses;
 
   //High-accuracy 
   if(accuracy > 0.75)
@@ -691,26 +695,18 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     } 
   }
 
-  md_addr_t pc_tag = get_PC();
-  assert((7 & pc_tag) == 0);
-  pc_tag = get_PC() >> 3;
+  md_addr_t pc = get_PC();
+  md_addr_t pc_set = CACHE_SET(cp, pc);
+  md_addr_t pc_tag = CACHE_TAG(cp, pc);
   md_addr_t prefetch_addr = 0;
 
-  int rpt_set_shift = log2(cp->prefetch_type);
-  int rpt_idx = pc_tag & ((1 << rpt_set_shift) - 1);
-
-  if (rpt.size() > cp->prefetch_type)
-    fatal("RPT table went over the size limit \n");
-  if (rpt_idx > cp->prefetch_type)
-    fatal("RPT index went over the size limit \n");
-  
-
+  assert(pc_set < cp->nsets);
   prediction_t * match_entry = NULL;
   bool match = false;
-  if(rpt[rpt_idx].tag == pc_tag)
+  if(p_table[pc_set].tag == pc_tag)
   {
      match = true;
-     match_entry = &rpt[rpt_idx];
+     match_entry = &p_table[pc_set];
   }
 
   //no matching PC tag; assign a new entry
@@ -720,7 +716,7 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     n_entry.state = INITIAL;
     n_entry.prev_addr = addr;
     n_entry.stride = 0;
-    rpt[rpt_idx] = n_entry;
+    p_table[pc_set] = n_entry;
   } else {
     int stride = (int)addr - (int)match_entry->prev_addr;
     switch(match_entry->state) {
@@ -835,17 +831,16 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
           prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
         }
         fetch_cache_blk(cp, prefetch_addr);
-
         break;
        default:
         fatal("Unsupported Prefetching aggressiveness\n");
         break;
     }
   }
+  /* ECE552 Assignment 4 - END CODE */
 }
 
 /* ECE552 Assignment 4 - BEGIN CODE */
-
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int i;

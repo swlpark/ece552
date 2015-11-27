@@ -1,0 +1,57 @@
+gcc:
+
+dl1.accesses               39355014 # total number of accesses
+dl1.hits                   38874661 # total number of hits
+dl1.misses                   480353 # total number of misses
+dl1.replacements             525113 # total number of replacements
+dl1.writebacks               128282 # total number of writebacks
+dl1.invalidations                 0 # total number of invalidations
+dl1.miss_rate                0.0122 # miss rate (i.e., misses/ref)
+dl1.repl_rate                0.0133 # replacement rate (i.e., repls/ref)
+dl1.wb_rate                  0.0033 # writeback rate (i.e., wrbks/ref)
+dl1.inv_rate                 0.0000 # invalidation rate (i.e., invs/ref)
+dl1.read_accesses          25581572 # total number of read accesses
+dl1.read_hits              25153347 # total number of read hits
+dl1.read_misses              428225 # total number of read misses
+dl1.read_miss_rate           0.0167 # read miss rate
+dl1.prefetch_accuracy             1 # accuracy of prefetch accesses
+dl1.prefetch_cnt              45016 # total number of prefetches
+dl1.prefetch_useful_cnt        44228 # total number of useful prefetches
+dl1.prefetch_misses           13983 # total number of misses caused by prefetch evictions
+
+go:
+
+dl1.accesses               28729334 # total number of accesses
+dl1.hits                   28413671 # total number of hits
+dl1.misses                   315663 # total number of misses
+dl1.replacements             353773 # total number of replacements
+dl1.writebacks               174587 # total number of writebacks
+dl1.invalidations                 0 # total number of invalidations
+dl1.miss_rate                0.0110 # miss rate (i.e., misses/ref)
+dl1.repl_rate                0.0123 # replacement rate (i.e., repls/ref)
+dl1.wb_rate                  0.0061 # writeback rate (i.e., wrbks/ref)
+dl1.inv_rate                 0.0000 # invalidation rate (i.e., invs/ref)
+dl1.read_accesses          21007456 # total number of read accesses
+dl1.read_hits              20741496 # total number of read hits
+dl1.read_misses              265960 # total number of read misses
+dl1.read_miss_rate           0.0127 # read miss rate
+dl1.prefetch_accuracy             1 # accuracy of prefetch accesses
+dl1.prefetch_cnt              38366 # total number of prefetches
+dl1.prefetch_useful_cnt        37496 # total number of useful prefetches
+dl1.prefetch_misses           10079 # total number of misses caused by prefetch evictions
+
+compress:
+
+dl1.miss_rate                0.0365 # miss rate (i.e., misses/ref)
+dl1.repl_rate                0.0416 # replacement rate (i.e., repls/ref)
+dl1.wb_rate                  0.0204 # writeback rate (i.e., wrbks/ref)
+dl1.inv_rate                 0.0000 # invalidation rate (i.e., invs/ref)
+dl1.read_accesses          17381698 # total number of read accesses
+dl1.read_hits              16524700 # total number of read hits
+dl1.read_misses              856998 # total number of read misses
+dl1.read_miss_rate           0.0493 # read miss rate
+dl1.prefetch_accuracy             1 # accuracy of prefetch accesses
+dl1.prefetch_cnt             148293 # total number of prefetches
+dl1.prefetch_useful_cnt       148288 # total number of useful prefetches
+dl1.prefetch_misses           14462 # total number of misses caused by prefetch evictions
+
