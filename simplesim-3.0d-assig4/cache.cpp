@@ -55,6 +55,7 @@
 #include <math.h>
 #include <string>
 #include <algorithm>
+#include <queue>
 
 #ifdef __cplusplus
 extern "C" {
@@ -157,8 +158,10 @@ struct evicted_tag {
 std::vector<prediction_t> rpt;
 std::vector<prediction_t> p_table;
 std::vector< std::list<evicted_tag> > evicted_blks;
+std::vector< std::queue<cache_blk_t> > blk_fifos;
+std::vector<prediction_t> stream_table;
 
-void multi_blk_fetch(cache_t *, md_addr_t);
+void stream_blk_fetch(cache_t *, md_addr_t, int);
 
 /* ECE552 Assignment 4 - END CODE */
 
@@ -342,9 +345,12 @@ cache_create(char *name,		/* name of the cache */
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
   }
+
   if (strcmp(cp->name, "dl1") == 0) {
      evicted_blks.resize(nsets, std::list<evicted_tag>());
      p_table.resize(256, (prediction_t) { 0, 0, 0, 0 });
+     blk_fifos.resize(32, std::queue<cache_blk_t>());
+     stream_table.resize(32, (prediction_t) { 0, 0, 0, 0 });
   }
   /* ECE552 Assignment 4 - END CODE */
 
@@ -559,6 +565,34 @@ extern "C"
 md_addr_t get_PC();
 
 /* ECE552 Assignment 4 - BEGIN CODE */
+void stream_blk_fetch(cache_t *cp, md_addr_t addr, int stream_idx){
+  struct cache_blk_t s_blk;
+  //do not add to stream buffer if blk exists in cache already
+
+  if(cache_probe(cp, addr))
+     return;
+  if(blk_fifos[stream_idx].size() >= 8)
+    return;
+
+  md_addr_t tag = CACHE_TAG(cp, addr);
+  md_addr_t set = CACHE_SET(cp, addr);
+
+  /* update block tags */
+  s_blk.tag = tag;
+  s_blk.status = CACHE_BLK_VALID;	/* dirty bit set on update */
+  s_blk.prefetched = 1;
+  s_blk.prefetch_used = 0;
+
+  /* read data block */
+  cp->prefetch_cnt += 1;
+  cp->blk_access_fn(Read, CACHE_BADDR(cp, addr), cp->bsize, &s_blk, NULL, 0);
+
+  /* update block status */
+  s_blk.ready = NULL;
+
+  blk_fifos[stream_idx].push(s_blk);
+}
+
 void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
   md_addr_t tag = CACHE_TAG(cp, addr);
   md_addr_t set = CACHE_SET(cp, addr);
@@ -583,7 +617,6 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
 	    return;
       }
   }
-
   switch (cp->policy) {
   case LRU:
   case FIFO:
@@ -700,18 +733,18 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
   pc_tag = get_PC() >> 3;
   md_addr_t prefetch_addr = 0;
 
-  int set_shift = log2(256);
-  int p_idx = pc_tag & ((1 << set_shift) - 1);
+  int set_shift = log2(32);
+  int stream_idx = pc_tag & ((1 << set_shift) - 1);
 
-  if (p_idx >= 256)
+  if (stream_idx >= 32)
     fatal("open-ended: index went over the size limit \n");
   
   prediction_t * match_entry = NULL;
   bool match = false;
-  if(p_table[p_idx].tag == pc_tag)
+  if(stream_table[stream_idx].tag == pc_tag)
   {
      match = true;
-     match_entry = &p_table[p_idx];
+     match_entry = &stream_table[stream_idx];
   }
 
   //no matching PC tag; assign a new entry
@@ -721,7 +754,9 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     n_entry.state = INITIAL;
     n_entry.prev_addr = addr;
     n_entry.stride = 0;
-    p_table[p_idx] = n_entry;
+
+    if(blk_fifos[stream_idx].size() == 0 || stream_table[stream_idx].state == INITIAL)
+       stream_table[stream_idx] = n_entry;
   } else {
     int stride = (int)addr - (int)match_entry->prev_addr;
     switch(match_entry->state) {
@@ -760,53 +795,49 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     }
     match_entry->prev_addr = addr; 
   }
-  if (prefetch_addr != 0)
-    fetch_cache_blk(cp, prefetch_addr);  if (prefetch_addr != 0) {
+
+  if (prefetch_addr != 0) {
      switch(cp->prefetch_aggr) {
       case 0:
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
       case 1:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 1) );
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
       case 2:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 2) );
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
       case 3:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 3) );
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
 
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
       case 4:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 4) );
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
 
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
 
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
 
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
-
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
       case 5:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 5) );
-        fetch_cache_blk(cp, prefetch_addr);
-
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
-
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
-
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         prefetch_addr += match_entry->stride;
-        fetch_cache_blk(cp, prefetch_addr);
+        stream_blk_fetch(cp, prefetch_addr, stream_idx);
         break;
        default:
         fatal("Unsupported Prefetching aggressiveness\n");
@@ -958,6 +989,9 @@ cache_access(struct cache_t *cp,	/* cache to access */
   md_addr_t bofs = CACHE_BLK(cp, addr);
   struct cache_blk_t *blk, *repl;
   int lat = 0;
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  bool stream_buf_hit = false;
+  /* ECE552 Assignment 4 - END CODE */
 
   /* default replacement address */
   if (repl_addr)
@@ -1008,11 +1042,25 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	}
     }
 
-  /* cache block not found */
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  /* check stream buffers */
+  cache_blk_t stream_buffer_blk;
+  for(int j=0; j < stream_table.size(); j++)
+  {
+     if(blk_fifos[j].size() == 0)  
+        continue;
+
+     stream_buffer_blk = blk_fifos[j].front();
+     if(stream_buffer_blk.tag == tag && (stream_buffer_blk.status & CACHE_BLK_VALID)) {
+        blk_fifos[j].pop();
+        stream_buf_hit = true;
+        break;
+     }
+  }
+
 
   /* **MISS** */
-  if (prefetch == 0 ) {
-
+  if (prefetch == 0 && !stream_buf_hit) {
      cp->misses++;
 
      if (cmd == Read) {	
@@ -1020,8 +1068,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
      }
   }
 
-  /* ECE552 Assignment 4 - BEGIN CODE */
-  if (strcmp(cp->name, "dl1") == 0) {
+  if ( strcmp(cp->name, "dl1") == 0 && !stream_buf_hit ) {
     for(std::list<evicted_tag>::iterator it = evicted_blks[set].begin(); it != evicted_blks[set].end(); ++it)
     {
        if(it->tag == tag && it->prefetched) {
@@ -1102,7 +1149,6 @@ cache_access(struct cache_t *cp,	/* cache to access */
        evicted_blks[set].push_front({false, repl->tag});
     }
   }
-  /* ECE552 Assignment 4 - END CODE */
 
 
   /* update block tags */
@@ -1110,8 +1156,22 @@ cache_access(struct cache_t *cp,	/* cache to access */
   repl->status = CACHE_BLK_VALID;	/* dirty bit set on update */
 
   /* read data block */
-  lat += cp->blk_access_fn(Read, CACHE_BADDR(cp, addr), cp->bsize,
-			   repl, now+lat, prefetch);
+  if (stream_buf_hit) {
+     /* **HIT on stream buffer** */
+     if (prefetch == 0) {
+
+        cp->hits++;
+        cp->prefetch_useful_cnt++;
+        repl->prefetched = 1;
+        repl->prefetch_used = 1;
+        if (cmd == Read) {	
+              cp->read_hits++;
+        }
+     }
+  } else { //cache miss... get blk from lower-level memory
+     lat += cp->blk_access_fn(Read, CACHE_BADDR(cp, addr), cp->bsize, repl, now+lat, prefetch);
+  }
+  /* ECE552 Assignment 4 - END CODE */
 
   /* copy data out of cache block */
   if (cp->balloc)
@@ -1153,6 +1213,7 @@ cache_access(struct cache_t *cp,	/* cache to access */
 	   cp->read_hits++;
      }
   }
+
   /* ECE552 Assignment 4 - BEGIN CODE */
   if (blk->prefetched){
     if(blk->prefetch_used == 0) {

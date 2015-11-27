@@ -155,8 +155,10 @@ struct evicted_tag {
 };
 
 std::vector<prediction_t> rpt;
-std::vector<prediction_t> b_table;
+std::vector<prediction_t> p_table;
 std::vector< std::list<evicted_tag> > evicted_blks;
+
+void multi_blk_fetch(cache_t *, md_addr_t);
 
 /* ECE552 Assignment 4 - END CODE */
 
@@ -339,10 +341,11 @@ cache_create(char *name,		/* name of the cache */
   /* ECE552 Assignment 4 - BEGIN CODE */
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
-    b_table.resize(32, (prediction_t) { 0, 0, 0, 0 });
   }
-  if (strcmp(cp->name, "dl1") == 0)
+  if (strcmp(cp->name, "dl1") == 0) {
      evicted_blks.resize(nsets, std::list<evicted_tag>());
+     p_table.resize(256, (prediction_t) { 0, 0, 0, 0 });
+  }
   /* ECE552 Assignment 4 - END CODE */
 
 
@@ -382,7 +385,7 @@ cache_create(char *name,		/* name of the cache */
   cp->prefetch_useful_cnt = 0;
   cp->prefetch_misses = 0;
 
-  cp->prefetch_aggr = 1;
+  cp->prefetch_aggr = 0;
   /* ECE552 Assignment 4 - END CODE */
 
   /* blow away the last block accessed */
@@ -580,7 +583,6 @@ void fetch_cache_blk (struct cache_t *cp, md_addr_t addr) {
 	    return;
       }
   }
-
   switch (cp->policy) {
   case LRU:
   case FIFO:
@@ -654,14 +656,15 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-  float accuracy = (float)cp->prefetch_useful_cnt / (float)cp->prefetch_cnt;
-  float polution = (float)cp->prefetch_misses / (float)cp->misses;
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  float accuracy = (float)cp->prefetch_useful_cnt / (float) cp->prefetch_cnt;
+  float polution = (float)cp->prefetch_misses / (float) cp->misses;
 
   //High-accuracy 
   if(accuracy > 0.75)
   {
     //low polution
-    if (polution < 0.25) {
+    if (polution < 0.01) {
       if(cp->prefetch_aggr < 5) {
          cp->prefetch_aggr += 1;
       }
@@ -675,7 +678,7 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
   else if (accuracy > 0.4) 
   {
     //poluting
-    if (polution >= 0.25) {
+    if (polution >= 0.01) {
       if(cp->prefetch_aggr > 0) {
          cp->prefetch_aggr -= 1;
       }
@@ -684,7 +687,7 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
   //Low-accuracy
   else {
     //poluting
-    if (polution >= 0.25) {
+    if (polution >= 0.01) {
       if(cp->prefetch_aggr > 0) {
          cp->prefetch_aggr -= 1;
       }
@@ -696,21 +699,18 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
   pc_tag = get_PC() >> 3;
   md_addr_t prefetch_addr = 0;
 
-  int rpt_set_shift = log2(cp->prefetch_type);
-  int rpt_idx = pc_tag & ((1 << rpt_set_shift) - 1);
+  int set_shift = log2(256);
+  int p_idx = pc_tag & ((1 << set_shift) - 1);
 
-  if (rpt.size() > cp->prefetch_type)
-    fatal("RPT table went over the size limit \n");
-  if (rpt_idx > cp->prefetch_type)
-    fatal("RPT index went over the size limit \n");
+  if (p_idx >= 256)
+    fatal("open-ended: index went over the size limit \n");
   
-
   prediction_t * match_entry = NULL;
   bool match = false;
-  if(rpt[rpt_idx].tag == pc_tag)
+  if(p_table[p_idx].tag == pc_tag)
   {
      match = true;
-     match_entry = &rpt[rpt_idx];
+     match_entry = &p_table[p_idx];
   }
 
   //no matching PC tag; assign a new entry
@@ -720,7 +720,7 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     n_entry.state = INITIAL;
     n_entry.prev_addr = addr;
     n_entry.stride = 0;
-    rpt[rpt_idx] = n_entry;
+    p_table[p_idx] = n_entry;
   } else {
     int stride = (int)addr - (int)match_entry->prev_addr;
     switch(match_entry->state) {
@@ -759,93 +759,63 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
     }
     match_entry->prev_addr = addr; 
   }
-
-  if (prefetch_addr != 0) {
+  if (prefetch_addr != 0)
+    fetch_cache_blk(cp, prefetch_addr);  if (prefetch_addr != 0) {
      switch(cp->prefetch_aggr) {
       case 0:
         fetch_cache_blk(cp, prefetch_addr);
         break;
       case 1:
-        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 2) );
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 1) );
         fetch_cache_blk(cp, prefetch_addr);
         break;
       case 2:
-        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 3) );
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 2) );
         fetch_cache_blk(cp, prefetch_addr);
         break;
       case 3:
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 3) );
+        fetch_cache_blk(cp, prefetch_addr);
+
+        prefetch_addr += match_entry->stride;
+        fetch_cache_blk(cp, prefetch_addr);
+        break;
+      case 4:
         prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 4) );
         fetch_cache_blk(cp, prefetch_addr);
 
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
 
-        break;
-      case 4:
-        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 5) );
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
 
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
-        fetch_cache_blk(cp, prefetch_addr);
-
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
-        fetch_cache_blk(cp, prefetch_addr);
-
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
 
         break;
       case 5:
-        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 6) );
+        prefetch_addr = (md_addr_t)((int)addr + ((int)match_entry->stride << 5) );
         fetch_cache_blk(cp, prefetch_addr);
 
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
 
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
 
-        if(cache_probe(cp, prefetch_addr + match_entry->stride) == 0){
-          prefetch_addr += match_entry->stride;
-        } else {
-          prefetch_addr += (match_entry->stride >= 0) ? cp->bsize : -((int)cp->bsize);
-        }
+        prefetch_addr += match_entry->stride;
         fetch_cache_blk(cp, prefetch_addr);
-
         break;
        default:
         fatal("Unsupported Prefetching aggressiveness\n");
         break;
     }
   }
+  /* ECE552 Assignment 4 - END CODE */
 }
 
 /* ECE552 Assignment 4 - BEGIN CODE */
-
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int i;
