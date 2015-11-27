@@ -155,6 +155,7 @@ struct evicted_tag {
 };
 
 std::vector<prediction_t> rpt;
+std::vector<prediction_t> b_table;
 std::vector< std::list<evicted_tag> > evicted_blks;
 
 /* ECE552 Assignment 4 - END CODE */
@@ -338,6 +339,7 @@ cache_create(char *name,		/* name of the cache */
   /* ECE552 Assignment 4 - BEGIN CODE */
   if (rpt.size() == 0) {
     rpt.resize(prefetch_type, (prediction_t) { 0, 0, 0, 0 });
+    b_table.resize(32, (prediction_t) { 0, 0, 0, 0 });
   }
   if (strcmp(cp->name, "dl1") == 0)
      evicted_blks.resize(nsets, std::list<evicted_tag>());
