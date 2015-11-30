@@ -1,23 +1,20 @@
 #include <stdio.h>
 
-struct blk_data
-{
- int data[16];
+struct blk_data {
+    long int data[8];
 };
 
+int main(int argc, char *argv[]) {
+    int i, j;
+    int size = atoi(argv[1]);
 
-int main(int argc, char *argv[])
-{
- int i,j;
- int size = atoi(argv[1]);
+    struct blk_data barray[size];
 
- struct blk_data b_array[size];
- for(i=0; i < size; i=i+1)
- {
-   for(j=0; j < 16; j=j+1)
-   {
-     b_array[i].data[j] = i & j;
-   }
- }
-
+    for (i = 0; i < size; i++) {
+	for (j = 0; j < 8; j++) {
+	    barray[i].data[0] = i ^ j ^ barray[i].data[j];
+	}
+    }
+    
+    return 0;
 }
