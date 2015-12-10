@@ -1,0 +1,3 @@
+PROTOCOL = 'MSI'
+CPU_MODELS = 'TimingSimpleCPU'
+SS_COMPATIBLE_FP = True
